@@ -1,70 +1,69 @@
 # agmsg-ars
 
-Unofficial ARS patch kit for the [AGMSG](https://github.com/fujibee/agmsg)
-desktop app.
+[AGMSG](https://github.com/fujibee/agmsg) デスクトップアプリに、ARS
+向けの日本語UIと運用補助を当てるための非公式パッチキットです。
 
-This repository does not fork or vendor AGMSG itself. It keeps a small patch
-stack and a build script that apply local UI/agent-workflow changes on top of
-the official AGMSG source.
+AGMSG本体をforkして丸ごと持つのではなく、公式ソースに対して小さな
+パッチ列を順番に適用する方式にしています。公式が更新されたときは、
+壊れたパッチだけを直して追従する想定です。
 
-## Status
+## 状態
 
-This is an unofficial patch kit. It is provided as-is, for people who want to
-study or reproduce the ARS desktop workflow. Review the patch files before
-building, keep backups of any existing AGMSG app, and expect patches to require
-refreshing when upstream AGMSG changes.
+これは非公式のパッチキットです。無保証で提供しています。ビルド前に
+パッチ内容を確認し、既存のAGMSGアプリは必ずバックアップしてください。
+公式AGMSGの変更により、パッチがそのまま当たらなくなることがあります。
 
-## What This Changes
+## 何が変わるか
 
-The current patch stack focuses on the desktop app:
+現在のパッチ列は、AGMSGデスクトップアプリの見た目とCodex連携の扱いを
+中心に変更します。
 
-- JST message time display
-- Light theme using white, gray, and navy
-- Dev-build updater guard, so patched builds do not overwrite themselves with
-  official releases
-- Composer stays visible while duplicate app-user history can stay hidden
-- Japanese composer wording uses `送信者 {appUser}`
-- Separate `# チームルーム` and `# チャットルーム` views
-- Bubble-style chat room messages
-- Codex pane startup avoids ambiguous `/agmsg actas codex` when the same
-  project path has a `codex` member in several teams
-- Running terminal panes are scoped by team and member name
-- Patched builds embed base commit, patch count, patch stack, and build time in
-  the app `Info.plist`
+- メッセージ時刻を日本時間で表示
+- 白・グレー・ネイビー基調の明るいテーマ
+- パッチ版アプリが公式アップデートで上書きされないようにする保護
+- チームログを1つに保ったまま、下部の発言欄は常に使えるようにする
+- 日本語UIで `として ARS` ではなく `送信者 {appUser}` と表示
+- `# チームルーム` と `# チャットルーム` をタブで切り替え
+- チャットルーム側は吹き出し風に表示
+- 同じプロジェクトパスに複数チームの `codex` がいる場合でも、
+  Codex pane起動時の `/agmsg actas codex` 曖昧化を避ける
+- 起動中のターミナルpaneを、メンバー名だけでなくチーム名込みで扱う
+- パッチ版ビルドに、公式ベースcommit・パッチ数・パッチ列・ビルド時刻を
+  `Info.plist` へ埋め込む
 
-See [docs/patch-stack.md](docs/patch-stack.md) for the full patch list.
+パッチごとの説明は [docs/patch-stack.md](docs/patch-stack.md) を参照してください。
 
-## Requirements
+## 必要なもの
 
 - macOS
 - Git
-- Node / pnpm dependencies required by upstream AGMSG
-- Rust / Tauri build toolchain required by upstream AGMSG
+- 公式AGMSGのビルドに必要なNode / pnpm環境
+- 公式AGMSGのビルドに必要なRust / Tauri環境
 
-The script clones upstream AGMSG into `.upstream/agmsg` by default. To use an
-existing clone, set `AGMSG_REPO`.
+ビルドスクリプトは、デフォルトでは公式AGMSGを `.upstream/agmsg` にcloneします。
+既存のcloneを使いたい場合は `AGMSG_REPO` を指定してください。
 
-## Build
+## ビルド
 
 ```bash
 scripts/update_agmsg_dev.sh --fetch
 ```
 
-The built app is saved under `dist/` by default.
+生成されたアプリは、デフォルトでは `dist/` に保存されます。
 
-To install it as `agmsg-dev.app`:
+`agmsg-dev.app` としてインストールする場合:
 
 ```bash
 scripts/update_agmsg_dev.sh --fetch --install
 ```
 
-The default install destination is:
+デフォルトのインストール先:
 
 ```text
 $HOME/Applications/agmsg-dev.app
 ```
 
-Override paths with environment variables:
+パスを変える場合:
 
 ```bash
 AGMSG_REPO=/path/to/agmsg \
@@ -72,32 +71,32 @@ AGMSG_APP_DEST="$HOME/Applications/agmsg-dev.app" \
 scripts/update_agmsg_dev.sh --base app-v0.1.4 --install
 ```
 
-## Updating Against New AGMSG Releases
+## 公式更新への追従
 
-1. Fetch or clone the new upstream source.
-2. Run the build script against the new base ref:
+1. 公式AGMSGの新しいソースをfetchまたはcloneします。
+2. 新しいbase refに対してビルドします。
 
    ```bash
    scripts/update_agmsg_dev.sh --fetch --base origin/main
    ```
 
-3. If a patch no longer applies, refresh only that patch instead of carrying a
-   full fork.
-4. Keep the patch stack small and numbered.
+3. パッチが当たらなくなった場合は、全体をfork化せず、壊れたパッチだけを
+   新しい公式ソースに合わせて作り直します。
+4. パッチ列は小さく、番号順に保ちます。
 
-## Privacy
+## 公開repoに入れないもの
 
-This repository is intended to be public. It should not contain:
+このrepoはpublicで使う前提です。以下は入れません。
 
-- AGMSG DB files or team state
-- API keys
-- persona/training files
-- LaunchAgents
-- local bridge runtimes
-- user chat logs
-- machine-specific absolute paths
+- AGMSG DBやチーム状態
+- APIキー
+- persona / trainingファイル
+- LaunchAgent
+- ローカルbridge runtime
+- チャットログ
+- 特定マシンの絶対パス
 
-## License
+## ライセンス
 
-MIT. AGMSG itself is also MIT-licensed; this repository contains only an
-overlay patch kit and documentation.
+MIT。AGMSG本体もMITライセンスです。このrepoには、AGMSG本体ではなく
+差分パッチとドキュメントだけを置いています。

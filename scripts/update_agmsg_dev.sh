@@ -21,33 +21,32 @@ usage() {
   cat <<'USAGE'
 Usage: scripts/update_agmsg_dev.sh [options]
 
-Build agmsg-dev from official fujibee/agmsg plus the agmsg-ars patch stack.
+公式 fujibee/agmsg に agmsg-ars のパッチ列を当てて agmsg-dev をビルドします。
 
 Options:
-  --fetch            fetch upstream main before building
-  --base <ref>       base ref to build from (default: origin/main)
-  --install          copy the built app to $HOME/Applications/agmsg-dev.app
-  --keep-worktree    keep the temporary worktree for debugging
-  -h, --help         show this help
+  --fetch            ビルド前に upstream main を fetch する
+  --base <ref>       ビルド対象の base ref (default: origin/main)
+  --install          生成した app を $HOME/Applications/agmsg-dev.app へコピーする
+  --keep-worktree    デバッグ用に一時 worktree を残す
+  -h, --help         このヘルプを表示する
 
 Environment:
-  AGMSG_REPO         upstream agmsg clone. If missing, it is cloned into
-                     .upstream/agmsg under this repository.
-  AGMSG_PATCH_DIR    directory containing local *.patch files
-  AGMSG_BUILD_PARENT parent directory for temporary worktrees
+  AGMSG_REPO         upstream agmsg clone。存在しない場合は、このrepo配下の
+                     .upstream/agmsg へ clone する
+  AGMSG_PATCH_DIR    local *.patch files を置いたディレクトリ
+  AGMSG_BUILD_PARENT 一時 worktree を作る親ディレクトリ
   AGMSG_ARTIFACT_PARENT
-                     destination for built app artifacts when not installing
+                     --install しない場合の生成 app 保存先
   AGMSG_NODE_MODULES_SOURCE
-                     optional node_modules directory to copy into the temporary
-                     worktree before building
+                     ビルド前に一時 worktree へコピーする任意の node_modules
   AGMSG_CORE_RESOURCE_SOURCE
-                     optional agmsg-core resource directory to copy into the
-                     temporary worktree when the upstream checkout needs it
-  AGMSG_APP_DEST     install destination when --install is used
+                     upstream checkout が必要とする場合にコピーする任意の
+                     agmsg-core resource directory
+  AGMSG_APP_DEST     --install 使用時のインストール先
   AGMSG_CODESIGN_IDENTITY
-                     signing identity for the built app. If unset, the script
-                     uses "agmsg-dev Local Code Signing" when present, otherwise
-                     falls back to ad-hoc signing ("-").
+                     生成 app の署名 identity。未指定の場合は
+                     "agmsg-dev Local Code Signing" があれば使い、なければ
+                     ad-hoc 署名 ("-") にフォールバックする。
 USAGE
 }
 
@@ -74,7 +73,7 @@ while (($#)); do
       exit 0
       ;;
     *)
-      echo "Unknown option: $1" >&2
+      echo "不明なオプションです: $1" >&2
       usage >&2
       exit 2
       ;;
@@ -82,12 +81,12 @@ while (($#)); do
 done
 
 if [[ ! -d "$PATCH_DIR" ]]; then
-  echo "patch directory not found: $PATCH_DIR" >&2
+  echo "パッチディレクトリが見つかりません: $PATCH_DIR" >&2
   exit 1
 fi
 
 if [[ ! -d "$REPO/.git" ]]; then
-  echo "Upstream agmsg clone not found; cloning into: $REPO"
+  echo "upstream agmsg clone が見つかりません。cloneします: $REPO"
   mkdir -p "$(dirname "$REPO")"
   git clone https://github.com/fujibee/agmsg.git "$REPO"
 fi
@@ -116,7 +115,7 @@ fi
 
 cleanup() {
   if ((KEEP)); then
-    echo "Kept worktree: $BUILD_DIR"
+    echo "worktree を残しました: $BUILD_DIR"
   else
     git -C "$REPO" worktree remove --force "$BUILD_DIR" >/dev/null 2>&1 || true
   fi
@@ -126,7 +125,7 @@ trap cleanup EXIT
 shopt -s nullglob
 patches=("$PATCH_DIR"/*.patch)
 if ((${#patches[@]} == 0)); then
-  echo "No patches found in $PATCH_DIR" >&2
+  echo "パッチが見つかりません: $PATCH_DIR" >&2
   exit 1
 fi
 PATCH_COUNT="${#patches[@]}"
@@ -138,19 +137,19 @@ for patch in "${patches[@]}"; do
     PATCH_STACK+=","
   fi
   PATCH_STACK+="$patch_name"
-  echo "Applying $patch_name"
+  echo "パッチ適用: $patch_name"
   git -C "$BUILD_DIR" apply "$patch"
 done
 
 if [[ -n "$NODE_MODULES_SOURCE" && -d "$NODE_MODULES_SOURCE" && ! -e "$BUILD_DIR/app/node_modules" ]]; then
   ditto "$NODE_MODULES_SOURCE" "$BUILD_DIR/app/node_modules"
-  echo "Copied node_modules from: $NODE_MODULES_SOURCE"
+  echo "node_modules をコピーしました: $NODE_MODULES_SOURCE"
 fi
 
 if [[ -n "$CORE_RESOURCE_SOURCE" && -d "$CORE_RESOURCE_SOURCE" && ! -e "$BUILD_DIR/app/src-tauri/resources/agmsg-core" ]]; then
   mkdir -p "$BUILD_DIR/app/src-tauri/resources"
   ditto "$CORE_RESOURCE_SOURCE" "$BUILD_DIR/app/src-tauri/resources/agmsg-core"
-  echo "Using agmsg-core resource: $CORE_RESOURCE_SOURCE"
+  echo "agmsg-core resource を使用します: $CORE_RESOURCE_SOURCE"
 fi
 
 (
@@ -166,7 +165,7 @@ fi
 )
 
 BUILT_APP="$BUILD_DIR/app/src-tauri/target/release/bundle/macos/agmsg-dev.app"
-echo "Built app: $BUILT_APP"
+echo "ビルド済み app: $BUILT_APP"
 BUILT_PLIST="$BUILT_APP/Contents/Info.plist"
 
 plist_set_string() {
@@ -184,7 +183,7 @@ plist_set_string AGMSGDevBuildTime "$BUILD_TIME_UTC"
 plist_set_string AGMSGDevBuildScript "agmsg-ars/scripts/update_agmsg_dev.sh"
 
 echo "Dev provenance: base=$BASE_DESCRIBE commit=${BASE_COMMIT:0:12} patches=$PATCH_COUNT built=$BUILD_TIME_UTC"
-echo "Signing app with identity: $CODESIGN_IDENTITY"
+echo "app に署名します: $CODESIGN_IDENTITY"
 codesign --force --deep --sign "$CODESIGN_IDENTITY" "$BUILT_APP" >/dev/null
 codesign --verify --deep --strict --verbose=2 "$BUILT_APP"
 
@@ -211,20 +210,20 @@ quit_running_app() {
     return 0
   fi
 
-  echo "Requesting running app to quit: $app_path ($app_id)"
+  echo "起動中の app に終了を要求します: $app_path ($app_id)"
   osascript -e "tell application id \"$app_id\" to quit" >/dev/null 2>&1 || true
 
   while ((waited < timeout_seconds)); do
     if ! app_is_running "$app_id"; then
-      echo "App exited: $app_path ($app_id)"
+      echo "app が終了しました: $app_path ($app_id)"
       return 0
     fi
     sleep 1
     waited=$((waited + 1))
   done
 
-  echo "App is still running after ${timeout_seconds}s: $app_path ($app_id)" >&2
-  echo "Quit agmsg-dev manually, then rerun with --install. Existing app was not moved." >&2
+  echo "${timeout_seconds}秒後も app が起動中です: $app_path ($app_id)" >&2
+  echo "agmsg-dev を手動で終了してから --install を再実行してください。既存 app は移動していません。" >&2
   return 1
 }
 
@@ -232,8 +231,8 @@ if ((INSTALL)); then
   app_id=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$BUILT_APP/Contents/Info.plist")
   quit_running_app "$app_id" 30 "$APP_DEST"
   if app_is_running "$app_id"; then
-    echo "App restarted before install could continue: $APP_DEST ($app_id)" >&2
-    echo "Quit agmsg-dev manually, then rerun with --install. Existing app was not moved." >&2
+    echo "install 継続前に app が再起動しました: $APP_DEST ($app_id)" >&2
+    echo "agmsg-dev を手動で終了してから --install を再実行してください。既存 app は移動していません。" >&2
     exit 1
   fi
   if [[ -e "$APP_DEST" ]]; then
@@ -242,18 +241,18 @@ if ((INSTALL)); then
       backup="${backup%*.disabled}-$$.app.disabled"
     fi
     mv "$APP_DEST" "$backup"
-    echo "Backed up existing app: $backup"
+    echo "既存 app をバックアップしました: $backup"
   fi
   mkdir -p "$(dirname "$APP_DEST")"
   ditto "$BUILT_APP" "$APP_DEST"
   strip_gatekeeper_xattrs "$APP_DEST"
-  echo "Installed app: $APP_DEST"
+  echo "app をインストールしました: $APP_DEST"
 else
   mkdir -p "$ARTIFACT_PARENT"
   ARTIFACT_APP="$ARTIFACT_PARENT/agmsg-dev-$(date +%Y%m%d%H%M%S).app"
   ditto "$BUILT_APP" "$ARTIFACT_APP"
   strip_gatekeeper_xattrs "$ARTIFACT_APP"
-  echo "Saved app: $ARTIFACT_APP"
-  echo "Install with:"
+  echo "app を保存しました: $ARTIFACT_APP"
+  echo "インストールする場合:"
   echo "  ditto \"$ARTIFACT_APP\" \"$APP_DEST\""
 fi

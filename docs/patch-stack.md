@@ -1,61 +1,62 @@
-# Patch Stack
+# パッチ列
 
-Base target at the time this stack was extracted:
+このパッチ列を切り出した時点の主な対象base:
 
 ```text
 app-v0.1.4
 ```
 
-The patches are applied in lexical order from `patches/agmsg-dev/`.
+パッチは `patches/agmsg-dev/` にある `.patch` ファイルを、ファイル名の昇順で
+適用します。
 
-## Patches
+## パッチ一覧
 
 - `0001-display-message-times-in-jst.patch`
-  - Render desktop message times in Japan time.
+  - デスクトップアプリのメッセージ時刻を日本時間で表示します。
 - `0002-light-navy-theme.patch`
-  - Replace the dark default look with a white/gray/navy theme.
+  - 暗色テーマを、白・グレー・ネイビー基調の明るいテーマに変えます。
 - `0003-disable-dev-auto-updater.patch`
-  - Prevent patched dev builds from auto-installing official updates over the
-    local build.
+  - パッチ版devビルドが公式アップデートで自動上書きされないようにします。
 - `0004-keep-composer-independent.patch`
-  - Keep the composer usable when duplicate app-user history is hidden.
+  - app-user履歴を隠しても、下部の発言欄は使えるようにします。
 - `0005-use-type-command-prefix-for-spawn.patch`
-  - Respect type-specific AGMSG command prefixes.
+  - agent typeごとのAGMSGコマンドprefixを尊重します。
 - `0006-timeout-delivery-mode-status.patch`
-  - Avoid blocking pane startup on slow delivery-mode probes.
+  - delivery-mode確認が遅い場合に、pane起動を長く止めないようにします。
 - `0007-hide-app-user-history-by-default.patch`
-  - Hide duplicate app-user history by default.
+  - 重複して見えるapp-user履歴をデフォルトで隠します。
 - `0008-do-not-probe-delivery-mode-before-spawn.patch`
-  - Treat app-spawned panes as app-delivered without a synchronous probe.
+  - pane起動前に同期的なdelivery-mode確認をしないようにします。
 - `0009-japanese-composer-sender-label.patch`
-  - Use `送信者` wording in the composer.
+  - 発言欄の日本語を `送信者` 表記にします。
 - `0010-inject-codex-actas-after-pty-start.patch`
-  - Historical Codex startup experiment retained for patch-stack continuity.
+  - Codex起動後にactasを入れる実験的変更です。後続パッチとの履歴整合のため
+    残しています。
 - `0011-bypass-codex-monitor-shim-in-pty-pane.patch`
-  - Launch the real Codex binary from app panes instead of a PATH shim.
+  - app paneからCodexを起動するとき、PATH shimではなく実体のCodex binaryを
+    起動します。
 - `0012-inject-codex-agmsg-command-on-message.patch`
-  - Inject a compact AGMSG inbox/send instruction for Codex panes when messages
-    arrive.
+  - Codex pane宛にAGMSGメッセージが来たとき、`inbox.sh` / `send.sh` を使う
+    短い指示を注入します。
 - `0013-do-not-inject-codex-actas-on-startup.patch`
-  - Stop startup-time `actas` injection into Codex panes.
+  - Codex pane起動時の `actas` 注入を止めます。
 - `0014-split-team-and-chat-room-tabs.patch`
-  - Add separate team-room and chat-room tabs, with bubble-style chat messages.
+  - `# チームルーム` と `# チャットルーム` をタブ化し、チャット側を吹き出し表示にします。
 - `0015-show-dev-build-provenance.patch`
-  - Embed and display upstream base and local patch provenance.
+  - 公式baseとローカルパッチ情報をdevビルドに埋め込み、表示できるようにします。
 - `0016-match-official-codex-spawn-command.patch`
-  - Keep Codex spawn behavior aligned with the official app command shape.
+  - Codex起動コマンドの形を公式アプリ側に寄せます。
 - `0017-scope-running-panes-by-team.patch`
-  - Scope live panes by team and member name, not member name alone.
+  - 起動中paneをメンバー名だけでなくチーム名込みで識別します。
 - `0018-start-codex-pane-without-actas.patch`
-  - Start Codex panes without `actas`; use team-scoped AGMSG delivery
-    instructions instead.
+  - Codex paneは `actas` なしで起動し、AGMSG受信時のチーム付き指示で処理します。
 
-## Refreshing a Patch
+## パッチを更新する手順
 
-When upstream changes conflict with a patch:
+公式AGMSGの変更でパッチが衝突した場合:
 
-1. Check out the upstream base in a temporary worktree.
-2. Apply patches up to the failing patch.
-3. Recreate only the failing patch against the new upstream source.
-4. Keep the filename number stable if the intent is unchanged.
+1. 公式baseを一時worktreeへcheckoutします。
+2. 失敗する直前までのパッチを適用します。
+3. 失敗したパッチだけを、新しい公式ソースに合わせて作り直します。
+4. 意図が同じならファイル番号は維持します。
 
