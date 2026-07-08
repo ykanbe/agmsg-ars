@@ -23,7 +23,7 @@ The current patch stack focuses on the desktop app:
 - Dev-build updater guard, so patched builds do not overwrite themselves with
   official releases
 - Composer stays visible while duplicate app-user history can stay hidden
-- Japanese composer wording uses `送信者 ARS`
+- Japanese composer wording uses `送信者 {appUser}`
 - Separate `# チームルーム` and `# チャットルーム` views
 - Bubble-style chat room messages
 - Codex pane startup avoids ambiguous `/agmsg actas codex` when the same
