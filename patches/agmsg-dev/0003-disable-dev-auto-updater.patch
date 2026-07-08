@@ -1,0 +1,62 @@
+diff --git a/app/src-tauri/src/lib.rs b/app/src-tauri/src/lib.rs
+index b9bb208..ea98015 100644
+--- a/app/src-tauri/src/lib.rs
++++ b/app/src-tauri/src/lib.rs
+@@ -284,13 +284,15 @@ const ZOOM_IN_ID: &str = "zoom_in";
+ const ZOOM_OUT_ID: &str = "zoom_out";
+ const ZOOM_RESET_ID: &str = "zoom_reset";
+ const CHECK_UPDATES_ID: &str = "check_updates";
++const IS_DEV_BUILD: bool = option_env!("AGMSG_DEV_BUILD").is_some();
+ const PANE_LAYOUT_VERTICAL_ID: &str = "pane_layout_vertical";
+ const PANE_LAYOUT_HORIZONTAL_ID: &str = "pane_layout_horizontal";
+ const PANE_LAYOUT_TILE_ID: &str = "pane_layout_tile";
+ 
+ /// Check the updater endpoint and, if a newer build is available, confirm
+-/// with the user before downloading, installing, and restarting. When
+-/// `user_initiated` is true (menu click) we also report "up to date" /
++/// with the user before downloading, installing, and restarting. Dev builds
++/// use the same check path but never download/install over the patched app.
++/// When `user_initiated` is true (menu click) we also report "up to date" /
+ /// errors; a silent startup check stays quiet unless there's an update.
+ async fn check_for_updates(app: &AppHandle, user_initiated: bool) {
+     use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
+@@ -315,6 +317,15 @@ async fn check_for_updates(app: &AppHandle, user_initiated: bool) {
+     match updater.check().await {
+         Ok(Some(update)) => {
+             let version = update.version.clone();
++            if IS_DEV_BUILD {
++                app.dialog()
++                    .message(d("devUpdateAvailableBody", &[("name", "agmsg"), ("version", &version)]))
++                    .title(d("updateAvailableTitle", &[]))
++                    .kind(MessageDialogKind::Info)
++                    .blocking_show();
++                return;
++            }
++
+             let proceed = app
+                 .dialog()
+                 .message(d("updateAvailableBody", &[("name", "agmsg"), ("version", &version)]))
+diff --git a/app/src/i18n/locales/en.json b/app/src/i18n/locales/en.json
+index 9305bee..4812664 100644
+--- a/app/src/i18n/locales/en.json
++++ b/app/src/i18n/locales/en.json
+@@ -190,6 +190,7 @@
+   "nativeDialog": {
+     "updateCheckFailed": "Update check failed: {{error}}",
+     "updateAvailableBody": "{{name}} {{version}} is available. Install and restart now?",
++    "devUpdateAvailableBody": "{{name}} {{version}} is available. This dev build will not install official updates automatically. Rebuild agmsg-dev from the latest official source plus local patches.",
+     "updateAvailableTitle": "Update Available",
+     "installAndRestart": "Install & Restart",
+     "later": "Later",
+diff --git a/app/src/i18n/locales/ja.json b/app/src/i18n/locales/ja.json
+index 607efee..8334388 100644
+--- a/app/src/i18n/locales/ja.json
++++ b/app/src/i18n/locales/ja.json
+@@ -190,6 +190,7 @@
+   "nativeDialog": {
+     "updateCheckFailed": "アップデートの確認に失敗しました: {{error}}",
+     "updateAvailableBody": "{{name}} {{version}} が利用可能です。インストールして再起動しますか？",
++    "devUpdateAvailableBody": "{{name}} {{version}} が利用可能です。このdev版では公式アップデートを自動インストールしません。最新の公式ソースにローカルパッチを当てて agmsg-dev を再ビルドしてください。",
+     "updateAvailableTitle": "アップデートあり",
+     "installAndRestart": "インストールして再起動",
+     "later": "あとで",

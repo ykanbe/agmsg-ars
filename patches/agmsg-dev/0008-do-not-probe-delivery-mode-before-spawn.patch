@@ -1,0 +1,32 @@
+diff --git a/app/src/App.tsx b/app/src/App.tsx
+--- a/app/src/App.tsx
++++ b/app/src/App.tsx
+@@ -525,23 +525,11 @@
+       const cli = type ? freshCliFor.get(type)! : undefined;
+       const cmdPrefix = type ? (freshCmdPrefixFor.get(type) ?? "/") : "/";
+       const options = type ? (freshOptionsFor.get(type) ?? []) : [];
+-      // `native` = "this (type, project) actually self-delivers agmsg
+-      // messages" — asked from agmsg's own delivery.sh status (mode derived
+-      // from the project's real hooks file), NOT a static type.conf flag.
+-      // A static flag can't see per-project setup or advanced opt-in paths
+-      // (e.g. codex's app-server bridge "monitor" mode is disabled by
+-      // default per type.conf but can be turned on per-project). When it's
+-      // NOT self-delivering, the app's PTY stdin-inject universal monitor is
+-      // this pane's only way to receive agmsg messages.
+-      let monitors = false;
+-      if (type && m.project) {
+-        try {
+-          const mode = await invoke<string>("agmsg_delivery_mode", { agentType: type, project: m.project });
+-          monitors = mode === "monitor" || mode === "both";
+-        } catch (err) {
+-          console.error(err);
+-        }
+-      }
++      // Treat app-spawned panes as app-delivered by default. Probing
++      // delivery.sh status can block on per-tool hooks files (notably Codex's
++      // .codex/hooks.json from a GUI sandbox), and pane startup must never
++      // wait on that optional status check.
++      const monitors = false;
+       const id = `${m.name}-${seq.current++}`;
+       // Mirror agmsg spawn.sh: launch the CLI with any per-type spawn-options
+       // flags, then `<cmd_prefix><cmd> actas <name>` as the final arg — same relative

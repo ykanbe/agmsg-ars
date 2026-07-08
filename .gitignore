@@ -1,0 +1,14 @@
+.DS_Store
+
+# Local upstream clone and build artifacts
+.upstream/
+dist/
+
+# Temporary/runtime files
+*.log
+*.tmp
+
+# Dependency/build directories if users build inside the repo
+node_modules/
+target/
+

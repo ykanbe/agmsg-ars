@@ -1,0 +1,19 @@
+diff --git a/app/src/i18n/locales/ja.json b/app/src/i18n/locales/ja.json
+--- a/app/src/i18n/locales/ja.json
++++ b/app/src/i18n/locales/ja.json
+@@ -65,13 +65,13 @@
+       "from": "{{from}} →"
+     },
+     "emptyState": {
+-      "withUser": "あなたのメッセージ（{{appUser}}として）がここに表示されます。",
++      "withUser": "送信者 {{appUser}} のメッセージがここに表示されます。",
+       "noUser": "このチームにapp-userがいません。 ",
+       "addOne": "追加する"
+     }
+   },
+   "composer": {
+-    "asPrefix": "として",
++    "asPrefix": "送信者",
+     "targetPlaceholder": "宛先…",
+     "messagePlaceholder": "メッセージ",
+     "sendButton": "送信",

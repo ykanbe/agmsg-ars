@@ -1,0 +1,13 @@
+diff --git a/app/src/App.tsx b/app/src/App.tsx
+index 637b572..84be4ab 100644
+--- a/app/src/App.tsx
++++ b/app/src/App.tsx
+@@ -537,7 +537,7 @@ export default function App() {
+             id,
+             label: m.name,
+             cmd: launchCmd ?? cli,
+-            args: type === "codex" ? options : [...options, actasPrompt],
++            args: type === "codex" ? [...options, `/agmsg actas ${m.name}`] : [...options, actasPrompt],
+             cwd: m.project || undefined,
+             cmdPrefix,
+             native: monitors,

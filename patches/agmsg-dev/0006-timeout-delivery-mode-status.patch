@@ -1,0 +1,67 @@
+diff --git a/app/src-tauri/src/agmsg.rs b/app/src-tauri/src/agmsg.rs
+--- a/app/src-tauri/src/agmsg.rs
++++ b/app/src-tauri/src/agmsg.rs
+@@ -6,8 +6,9 @@
+ // read-only feed, plus the left-hand member list.
+ 
+ use std::path::PathBuf;
++use std::process::Stdio;
+ use std::thread;
+-use std::time::Duration;
++use std::time::{Duration, Instant};
+ 
+ use serde::{Deserialize, Serialize};
+ use tauri::{AppHandle, Emitter, Manager};
+@@ -559,6 +560,39 @@ fn run_script(name: &str, args: &[&str]) -> Result<String, String> {
+         Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+     } else {
+         Err(String::from_utf8_lossy(&output.stderr).into_owned())
++    }
++}
++
++fn run_script_timeout(name: &str, args: &[&str], timeout: Duration) -> Result<String, String> {
++    let script = agmsg_base().join("scripts").join(name);
++    let mut child = bash_command()?
++        .arg(bash_path(&script))
++        .args(args)
++        .stdout(Stdio::piped())
++        .stderr(Stdio::piped())
++        .spawn()
++        .map_err(|e| e.to_string())?;
++    let started = Instant::now();
++    loop {
++        if child.try_wait().map_err(|e| e.to_string())?.is_some() {
++            let output = child.wait_with_output().map_err(|e| e.to_string())?;
++            if output.status.success() {
++                return Ok(String::from_utf8_lossy(&output.stdout).into_owned());
++            }
++            return Err(String::from_utf8_lossy(&output.stderr).into_owned());
++        }
++        if started.elapsed() >= timeout {
++            let _ = child.kill();
++            let output = child.wait_with_output().map_err(|e| e.to_string())?;
++            let stderr = String::from_utf8_lossy(&output.stderr);
++            return Err(format!(
++                "{name} timed out after {}ms{}{}",
++                timeout.as_millis(),
++                if stderr.trim().is_empty() { "" } else { ": " },
++                stderr.trim()
++            ));
++        }
++        thread::sleep(Duration::from_millis(50));
+     }
+ }
+ 
+@@ -627,7 +661,11 @@
+ #[tauri::command]
+ pub fn agmsg_delivery_mode(agent_type: String, project: String) -> Result<String, String> {
+     let project = bash_path(std::path::Path::new(&project));
+-    let output = run_script("delivery.sh", &["status", &agent_type, &project])?;
++    let output = run_script_timeout(
++        "delivery.sh",
++        &["status", &agent_type, &project],
++        Duration::from_millis(1500),
++    )?;
+     for line in output.lines() {
+         if let Some(mode) = line.strip_prefix("mode:") {
+             return Ok(mode.trim().to_string());

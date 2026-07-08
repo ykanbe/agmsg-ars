@@ -1,0 +1,37 @@
+diff --git a/app/src/App.tsx b/app/src/App.tsx
+index a6ea829..3f36fe2 100644
+--- a/app/src/App.tsx
++++ b/app/src/App.tsx
+@@ -30,6 +30,7 @@ type Pane = {
+   args: string[];
+   cwd?: string;
+   initialInput?: string;
++  cmdPrefix?: string;
+   /** True only when this pane's type self-delivers agmsg messages (manifest
+    *  monitor=yes) — the app must NOT also inject there (double-delivery).
+    *  False for actas-booted types with no monitor of their own (codex,
+@@ -431,7 +432,15 @@ export default function App() {
+         // territory since it can no longer contain newlines or run long.
+         const flat = e.payload.body.replace(/\s+/g, " ").trim();
+         const preview = flat.length > 80 ? `${flat.slice(0, 80)}…` : flat;
+-        const kickoff = `[agmsg] ${e.payload.from}: "${preview}" — run /${cmdName} to check it.`;
++        const kickoff =
++          pane.cmdPrefix === "$"
++            ? [
++                `[agmsg] New message in team ${e.payload.team} from ${e.payload.from} to ${e.payload.to}.`,
++                `Preview: "${preview}".`,
++                "Use AGMSG scripts now; do not answer only in this terminal.",
++                `Run ~/.agents/skills/agmsg/scripts/inbox.sh ${e.payload.team} ${e.payload.to}, then reply with ~/.agents/skills/agmsg/scripts/send.sh ${e.payload.team} ${e.payload.to} ${e.payload.from} "<reply>" if appropriate.`,
++              ].join(" ")
++            : `[agmsg] ${e.payload.from}: "${preview}" — run /${cmdName} to check it.`;
+         void invoke("pty_inject", { id: pane.id, text: kickoff });
+       }
+     });
+@@ -548,6 +552,7 @@ export default function App() {
+             args: type === "codex" ? options : [...options, actasPrompt],
+             cwd: m.project || undefined,
+             initialInput: type === "codex" ? `${actasPrompt}\r` : undefined,
++            cmdPrefix,
+             native: monitors,
+           }
+         : { id, label: m.name, cmd: "bash", args: [], cwd: m.project || undefined, native: false };

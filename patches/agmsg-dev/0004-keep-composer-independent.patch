@@ -1,0 +1,102 @@
+diff --git a/app/src-tauri/src/lib.rs b/app/src-tauri/src/lib.rs
+index ea98015..17a5220 100644
+--- a/app/src-tauri/src/lib.rs
++++ b/app/src-tauri/src/lib.rs
+@@ -231,9 +231,9 @@ fn make_menu(app: &AppHandle, lang: &str) -> tauri::Result<Menu<Wry>> {
+             &PredefinedMenuItem::select_all(app, Some(&m("selectAll")))?,
+         ],
+     )?;
+-    // "Show User Chat" toggles the app-user send/receive panel (chat +
+-    // composer) in the frontend. The frontend owns the actual show/hide state;
+-    // this checkbox just reflects it and emits a toggle event when clicked.
++    // "Show User Chat History" toggles only the app-user message history in
++    // the frontend. The composer stays visible; this checkbox just reflects
++    // history show/hide state and emits a toggle event when clicked.
+     // "Pane Layout" duplicates the right-click-tab context menu's Layout
+     // submenu (frontend App.tsx) here too — that one works fine but users
+     // reported not discovering it, being tucked inside a right-click. The
+diff --git a/app/src/App.css b/app/src/App.css
+index 17e3232..d248cb2 100644
+--- a/app/src/App.css
++++ b/app/src/App.css
+@@ -1078,10 +1078,9 @@ body.resizing-row {
+   gap: 4px;
+ }
+ /* `hidden` alone loses to our `display: flex` (author styles beat the UA
+-   stylesheet's [hidden] rule), so spell it out for the panels View > Show
+-   User Chat toggles. */
+-.appuser-chat[hidden],
+-.composer[hidden] {
++   stylesheet's [hidden] rule), so spell it out for the history panel toggled
++   from View > Show User Chat. The composer is intentionally independent. */
++.appuser-chat[hidden] {
+   display: none;
+ }
+ .chat-line {
+diff --git a/app/src/App.tsx b/app/src/App.tsx
+index df860b0..1978cd2 100644
+--- a/app/src/App.tsx
++++ b/app/src/App.tsx
+@@ -161,6 +161,8 @@ export default function App() {
+   const [sidebarWidth, setSidebarWidth] = useState(200);
+   const [chatHeight, setChatHeight] = useState(160);
+   // Toggled from the native "View > Show User Chat" menu item.
++  // Only the app-user history panel follows this; the composer stays visible
++  // so the human can keep sending messages without duplicating the team log.
+   const [showUserChat, setShowUserChat] = useState(true);
+   // Team-room member filter: names the user has UN-checked (default: all shown).
+   const [deselected, setDeselected] = useState<Set<string>>(new Set());
+@@ -297,7 +299,8 @@ export default function App() {
+     invoke<string>("agmsg_command_name").then(setCmdName).catch(() => {});
+   }, []);
+ 
+-  // Native "View > Show User Chat" menu checkbox toggles the chat/composer panel.
++  // Native "View > Show User Chat" menu checkbox toggles only the app-user
++  // history panel. The composer remains independent and always available.
+   useEffect(() => {
+     const p = listen<boolean>("toggle-user-chat", (e) => setShowUserChat(e.payload));
+     return () => void p.then((u) => u());
+@@ -1420,7 +1423,7 @@ export default function App() {
+ 
+           {showUserChat && <div className="divider-h" onMouseDown={startChatDrag} />}
+ 
+-          {/* App-user chat: the human's own send/receive thread + composer.
++          {/* App-user chat: the human's own send/receive thread.
+               Hidden via View > Show User Chat (native menu checkbox). Clicking
+               the history jumps focus to the composer input below — the
+               history itself has nothing to focus (nothing to type into), so
+@@ -1457,7 +1460,7 @@ export default function App() {
+             )}
+           </div>
+ 
+-          <footer className="composer" hidden={!showUserChat}>
++          <footer className="composer">
+             {appUser ? (
+               <>
+                 <span className="as">
+diff --git a/app/src/i18n/locales/en.json b/app/src/i18n/locales/en.json
+index 4812664..c415099 100644
+--- a/app/src/i18n/locales/en.json
++++ b/app/src/i18n/locales/en.json
+@@ -175,7 +175,7 @@
+     "paste": "Paste",
+     "selectAll": "Select All",
+     "viewMenu": "View",
+-    "showUserChat": "Show User Chat",
++    "showUserChat": "Show User Chat History",
+     "paneLayout": "Pane Layout",
+     "paneLayoutVertical": "Vertical",
+     "paneLayoutHorizontal": "Horizontal",
+diff --git a/app/src/i18n/locales/ja.json b/app/src/i18n/locales/ja.json
+index 8334388..621c1b4 100644
+--- a/app/src/i18n/locales/ja.json
++++ b/app/src/i18n/locales/ja.json
+@@ -175,7 +175,7 @@
+     "paste": "ペースト",
+     "selectAll": "すべてを選択",
+     "viewMenu": "表示",
+-    "showUserChat": "自分のチャットを表示",
++    "showUserChat": "自分のチャット履歴を表示",
+     "paneLayout": "ペインレイアウト",
+     "paneLayoutVertical": "縦",
+     "paneLayoutHorizontal": "横",

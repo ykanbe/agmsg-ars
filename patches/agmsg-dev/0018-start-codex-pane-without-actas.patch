@@ -1,0 +1,29 @@
+diff --git a/app/src/App.tsx b/app/src/App.tsx
+--- a/app/src/App.tsx
++++ b/app/src/App.tsx
+@@ -531,17 +531,20 @@ export default function App() {
+       const id = `${m.name}-${seq.current++}`;
+-      // Mirror agmsg spawn.sh: launch the CLI with any per-type spawn-options
+-      // flags, then `<cmd_prefix><cmd> actas <name>` as the final arg — same relative
+-      // order spawn.sh splices them in — so the agent comes up as the real
+-      // member (can send as itself, and self-delivers if its type monitors).
++      // Mirror agmsg spawn.sh for ordinary CLIs: launch the CLI with any
++      // per-type spawn-options flags, then `<cmd_prefix><cmd> actas <name>` as
++      // the final arg so the agent comes up as the real member. Codex is the
++      // exception: when the same project path is registered in several teams
++      // with the same member name, startup `/agmsg actas codex` is ambiguous.
++      // Codex panes start as a plain TUI and receive team-scoped inbox/send
++      // instructions from the app-side monitor.
+       // Types with no spawnable CLI fall back to a shell.
+       const actasPrompt = `${cmdPrefix}${cmdName} actas ${m.name}`;
+       const pane: Pane = cli
+         ? {
+             id,
+             label: m.name,
+             team,
+             cmd: launchCmd ?? cli,
+-            args: type === "codex" ? [...options, `/agmsg actas ${m.name}`] : [...options, actasPrompt],
++            args: type === "codex" ? [...options] : [...options, actasPrompt],
+             cwd: m.project || undefined,
+             cmdPrefix,
+             native: monitors,

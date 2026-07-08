@@ -1,0 +1,82 @@
+diff --git a/app/src/App.tsx b/app/src/App.tsx
+--- a/app/src/App.tsx
++++ b/app/src/App.tsx
+@@ -47,6 +47,9 @@ type Message = {
+ type Pane = {
+   id: string;
+   label: string;
++  /** Team this live agent pane belongs to. Agent names are only unique within
++   *  a team; several teams can all have a member named "codex". */
++  team: string;
+   cmd: string;
+   args: string[];
+   cwd?: string;
+@@ -393,7 +396,7 @@ export default function App() {
+       setMessages((prev) => [...prev, e.payload]);
+       // Only inject into NON-native panes; a native (actas-booted) agent runs
+       // its own agmsg monitor and would otherwise receive the message twice.
+-      const pane = panesRef.current.find((pn) => pn.label === e.payload.to && !pn.native);
++      const pane = panesRef.current.find((pn) => pn.team === e.payload.team && pn.label === e.payload.to && !pn.native);
+       if (pane) {
+         // Inject a kickoff notice, not the raw message body verbatim. The
+         // real agmsg Monitor (watch.sh) never types a message's contents
+@@ -502,7 +505,7 @@ export default function App() {
+     async (m: Member, targetWindowId?: string) => {
+       // Don't spawn a second pane for a member that's already running — just
+       // focus its window (one live agent per identity).
+-      const existing = panesRef.current.find((p) => p.label === m.name);
++      const existing = panesRef.current.find((p) => p.team === team && p.label === m.name);
+       if (existing) {
+         const w = windowsRef.current.find((win) => leaves(win.root).includes(existing.id));
+         if (w) setActive(w.id);
+@@ -538,13 +541,14 @@ export default function App() {
+         ? {
+             id,
+             label: m.name,
++            team,
+             cmd: launchCmd ?? cli,
+             args: type === "codex" ? [...options, `/agmsg actas ${m.name}`] : [...options, actasPrompt],
+             cwd: m.project || undefined,
+             cmdPrefix,
+             native: monitors,
+           }
+-        : { id, label: m.name, cmd: "bash", args: [], cwd: m.project || undefined, native: false };
++        : { id, label: m.name, team, cmd: "bash", args: [], cwd: m.project || undefined, native: false };
+       setPanes((prev) => [...prev, pane]);
+       if (targetWindowId) {
+         setWindows((prev) =>
+@@ -799,7 +803,7 @@ export default function App() {
+ 
+   const onLeave = useCallback(
+     async (name: string) => {
+-      const pane = panesRef.current.find((p) => p.label === name);
++      const pane = panesRef.current.find((p) => p.team === team && p.label === name);
+       if (pane) {
+         await invoke("pty_kill", { id: pane.id });
+         setPanes((prev) => prev.filter((p) => p.id !== pane.id));
+@@ -1060,14 +1064,14 @@ export default function App() {
+                   className="member"
+                   onClick={() => spawnMember(m)}
+                   title={
+-                    panes.some((p) => p.label === m.name)
++                    panes.some((p) => p.team === team && p.label === m.name)
+                       ? t("sidebar.member.titleRunning")
+                       : t("sidebar.member.titleSpawn")
+                   }
+                 >
+                   <span className="member-name">
+                     {m.name}
+-                    {panes.some((p) => p.label === m.name) && <span className="running-dot" />}
++                    {panes.some((p) => p.team === team && p.label === m.name) && <span className="running-dot" />}
+                   </span>
+                   <span className="member-types">
+                     {m.types.join(", ") || t("sidebar.member.noTypes")}
+@@ -1546,7 +1550,7 @@ export default function App() {
+           // One live agent per identity — same rule spawnMember/the running-dot
+           // indicator already enforce. A running member can't be spawned again,
+           // so don't offer a "Spawn to…" that would silently just focus it.
+-          const isRunning = panes.some((p) => p.label === memberMenu.member.name);
++          const isRunning = panes.some((p) => p.team === team && p.label === memberMenu.member.name);
+           return (
+             <div
+               className="ctx-menu"

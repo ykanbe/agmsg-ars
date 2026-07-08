@@ -1,0 +1,26 @@
+diff --git a/app/src-tauri/src/lib.rs b/app/src-tauri/src/lib.rs
+index 17a5220..cc57a66 100644
+--- a/app/src-tauri/src/lib.rs
++++ b/app/src-tauri/src/lib.rs
+@@ -257,7 +257,7 @@ fn make_menu(app: &AppHandle, lang: &str) -> tauri::Result<Menu<Wry>> {
+         m("viewMenu"),
+         true,
+         &[
+-            &CheckMenuItem::with_id(app, USER_CHAT_MENU_ID, m("showUserChat"), true, true, None::<&str>)?,
++            &CheckMenuItem::with_id(app, USER_CHAT_MENU_ID, m("showUserChat"), true, false, None::<&str>)?,
+             &PredefinedMenuItem::separator(app)?,
+             &pane_layout_menu,
+             &PredefinedMenuItem::separator(app)?,
+diff --git a/app/src/App.tsx b/app/src/App.tsx
+index 6046afe..4c3ee97 100644
+--- a/app/src/App.tsx
++++ b/app/src/App.tsx
+@@ -163,7 +163,7 @@ export default function App() {
+   // Toggled from the native "View > Show User Chat" menu item.
+   // Only the app-user history panel follows this; the composer stays visible
+   // so the human can keep sending messages without duplicating the team log.
+-  const [showUserChat, setShowUserChat] = useState(true);
++  const [showUserChat, setShowUserChat] = useState(false);
+   // Team-room member filter: names the user has UN-checked (default: all shown).
+   const [deselected, setDeselected] = useState<Set<string>>(new Set());
+   // Team-room history paging: whether an older page exists, and whether one

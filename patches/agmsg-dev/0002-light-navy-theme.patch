@@ -1,0 +1,258 @@
+diff --git a/app/src/App.css b/app/src/App.css
+index 6faebeb..96b16ad 100644
+--- a/app/src/App.css
++++ b/app/src/App.css
+@@ -1,12 +1,18 @@
+ :root {
+-  --bg: #0b0e14;
+-  --panel: #11151f;
+-  --panel-2: #161b27;
+-  --border: #232a3a;
+-  --fg: #c5c8c6;
+-  --muted: #6b7280;
+-  --accent: #7aa2f7;
+-  --green: #9ece6a;
++  --bg: #f5f7fa;
++  --panel: #ffffff;
++  --panel-2: #eef2f6;
++  --border: #d7dde6;
++  --fg: #172033;
++  --muted: #667085;
++  --accent: #1f3a5f;
++  --green: #2f6f5e;
++  --danger: #d9485f;
++  --on-accent: #ffffff;
++  --shadow: rgba(15, 23, 42, 0.14);
++  --shadow-strong: rgba(15, 23, 42, 0.2);
++  --outgoing: #dbe4f0;
++  --incoming: #edf1f5;
+ }
+ 
+ * {
+@@ -38,15 +44,15 @@ body,
+   justify-content: space-between;
+   gap: 12px;
+   padding: 8px 14px 8px 80px;
+-  background: #4a1f1f;
+-  color: #ffd7d7;
++  background: #fff1f2;
++  color: #9f1239;
+   font-size: 12px;
+-  border-bottom: 1px solid #6b2b2b;
++  border-bottom: 1px solid #fecdd3;
+ }
+ .startup-error-banner button {
+   background: transparent;
+-  border: 1px solid #ffd7d7;
+-  color: #ffd7d7;
++  border: 1px solid #fda4af;
++  color: #9f1239;
+   border-radius: 4px;
+   padding: 2px 8px;
+   cursor: pointer;
+@@ -69,15 +75,15 @@ body,
+   justify-content: space-between;
+   gap: 12px;
+   padding: 8px 14px 8px 80px;
+-  background: #4a3a1f;
+-  color: #ffe7b3;
++  background: #fffbeb;
++  color: #92400e;
+   font-size: 12px;
+-  border-bottom: 1px solid #6b552b;
++  border-bottom: 1px solid #fde68a;
+ }
+ .startup-outdated-banner button {
+   background: transparent;
+-  border: 1px solid #ffe7b3;
+-  color: #ffe7b3;
++  border: 1px solid #fbbf24;
++  color: #92400e;
+   border-radius: 4px;
+   padding: 2px 8px;
+   cursor: pointer;
+@@ -90,15 +96,15 @@ body,
+   justify-content: space-between;
+   gap: 12px;
+   padding: 8px 14px 8px 80px;
+-  background: #1f4a2c;
+-  color: #c8f7d4;
++  background: #ecfdf5;
++  color: #047857;
+   font-size: 12px;
+-  border-bottom: 1px solid #2b6b41;
++  border-bottom: 1px solid #a7f3d0;
+ }
+ .startup-success-banner button {
+   background: transparent;
+-  border: 1px solid #c8f7d4;
+-  color: #c8f7d4;
++  border: 1px solid #6ee7b7;
++  color: #047857;
+   border-radius: 4px;
+   padding: 2px 8px;
+   cursor: pointer;
+@@ -145,7 +151,7 @@ select {
+   padding: 6px 28px 6px 10px;
+   font: inherit;
+   cursor: pointer;
+-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b7280' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
++  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2364748b' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+   background-repeat: no-repeat;
+   background-position: right 10px center;
+ }
+@@ -182,7 +188,7 @@ select:focus {
+   border: 1px solid var(--border);
+   border-radius: 6px;
+   overflow: hidden;
+-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
++  box-shadow: 0 8px 24px var(--shadow);
+ }
+ .new-menu button {
+   background: none;
+@@ -212,7 +218,7 @@ select:focus {
+   background: var(--panel-2);
+   border: 1px solid var(--border);
+   border-radius: 8px;
+-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
++  box-shadow: 0 8px 24px var(--shadow);
+ }
+ .ctx-menu button {
+   background: none;
+@@ -227,7 +233,7 @@ select:focus {
+   background: var(--bg);
+ }
+ .ctx-menu button.danger {
+-  color: #f7768e;
++  color: var(--danger);
+ }
+ .ctx-menu button:disabled {
+   opacity: 0.4;
+@@ -259,7 +265,7 @@ select:focus {
+   border: 1px solid var(--border);
+   border-radius: 8px;
+   overflow: hidden;
+-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
++  box-shadow: 0 8px 24px var(--shadow);
+ }
+ .submenu-trigger:hover .submenu {
+   display: flex;
+@@ -284,7 +290,7 @@ select:focus {
+   position: fixed;
+   inset: 0;
+   z-index: 50;
+-  background: rgba(0, 0, 0, 0.5);
++  background: rgba(15, 23, 42, 0.28);
+   display: flex;
+   align-items: center;
+   justify-content: center;
+@@ -296,7 +302,7 @@ select:focus {
+   border: 1px solid var(--border);
+   border-radius: 10px;
+   padding: 18px;
+-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
++  box-shadow: 0 16px 48px var(--shadow-strong);
+ }
+ .modal-title {
+   font-weight: 700;
+@@ -343,7 +349,7 @@ select:focus {
+   cursor: pointer;
+ }
+ .modal-err {
+-  color: #f7768e;
++  color: var(--danger);
+   font-size: 12px;
+   margin-bottom: 10px;
+   white-space: pre-wrap;
+@@ -363,12 +369,12 @@ select:focus {
+ }
+ .modal-actions button.primary {
+   background: var(--accent);
+-  color: #0b0e14;
++  color: var(--on-accent);
+   border: none;
+   font-weight: 600;
+ }
+ .modal-actions button.primary.danger {
+-  background: #f7768e;
++  background: var(--danger);
+ }
+ .modal-actions button:disabled {
+   opacity: 0.4;
+@@ -600,7 +606,7 @@ body.resizing-row {
+   height: 26px;
+   border-radius: 50%;
+   flex-shrink: 0;
+-  background: linear-gradient(135deg, var(--accent), #5566c4);
++  background: linear-gradient(135deg, var(--accent), #64748b);
+ }
+ .settings-btn {
+   margin-left: auto;
+@@ -710,7 +716,7 @@ body.resizing-row {
+ }
+ .tab-close:hover {
+   opacity: 1;
+-  color: #f7768e;
++  color: var(--danger);
+ }
+ 
+ /* Stage */
+@@ -857,7 +863,7 @@ body.resizing-row {
+ }
+ .pane-header-label.swap-armed {
+   background: var(--accent);
+-  color: #fff;
++  color: var(--on-accent);
+   cursor: grabbing;
+ }
+ /* Off-screen drag image for pane-header drags — see onDragStart in App.tsx.
+@@ -869,7 +875,7 @@ body.resizing-row {
+   left: -9999px;
+   padding: 2px 8px;
+   font-size: 11px;
+-  color: #fff;
++  color: var(--on-accent);
+   background: var(--accent);
+   border-radius: 3px;
+   white-space: nowrap;
+@@ -938,7 +944,7 @@ body.resizing-row {
+   font-size: 11px;
+   white-space: nowrap;
+   z-index: 70;
+-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
++  box-shadow: 0 8px 24px var(--shadow);
+ }
+ .monitor-dot:hover .monitor-tip {
+   display: block;
+@@ -953,7 +959,7 @@ body.resizing-row {
+   line-height: 1;
+ }
+ .pane-header-close:hover {
+-  color: #f7768e;
++  color: var(--danger);
+ }
+ .pane-cell .term-pane {
+   flex: 1;
+@@ -994,11 +1000,11 @@ body.resizing-row {
+ }
+ .chat-line.out {
+   align-self: flex-end;
+-  background: #1f3a5f;
++  background: var(--outgoing);
+ }
+ .chat-line.in {
+   align-self: flex-start;
+-  background: #1a2436;
++  background: var(--incoming);
+ }
+ .chat-time {
+   color: var(--muted);
+@@ -1063,7 +1069,7 @@ body.resizing-row {
+ }
+ .composer button {
+   background: var(--accent);
+-  color: #0b0e14;
++  color: var(--on-accent);
+   border: none;
+   border-radius: 8px;
+   padding: 8px 16px;

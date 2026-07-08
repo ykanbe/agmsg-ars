@@ -1,0 +1,78 @@
+diff --git a/app/src/App.tsx b/app/src/App.tsx
+--- a/app/src/App.tsx
++++ b/app/src/App.tsx
+@@ -29,6 +29,7 @@
+   cmd: string;
+   args: string[];
+   cwd?: string;
++  initialInput?: string;
+   /** True only when this pane's type self-delivers agmsg messages (manifest
+    *  monitor=yes) — the app must NOT also inject there (double-delivery).
+    *  False for actas-booted types with no monitor of their own (codex,
+@@ -536,13 +537,15 @@
+       // order spawn.sh splices them in — so the agent comes up as the real
+       // member (can send as itself, and self-delivers if its type monitors).
+       // Types with no spawnable CLI fall back to a shell.
++      const actasPrompt = `${cmdPrefix}${cmdName} actas ${m.name}`;
+       const pane: Pane = cli
+         ? {
+             id,
+             label: m.name,
+             cmd: cli,
+-            args: [...options, `${cmdPrefix}${cmdName} actas ${m.name}`],
++            args: type === "codex" ? options : [...options, actasPrompt],
+             cwd: m.project || undefined,
++            initialInput: type === "codex" ? `${actasPrompt}\r` : undefined,
+             native: monitors,
+           }
+         : { id, label: m.name, cmd: "bash", args: [], cwd: m.project || undefined, native: false };
+@@ -1245,7 +1248,7 @@
+                       ×
+                     </button>
+                   </div>
+-                  <TerminalPane id={p.id} cmd={p.cmd} args={p.args} cwd={p.cwd} />
++                  <TerminalPane id={p.id} cmd={p.cmd} args={p.args} cwd={p.cwd} initialInput={p.initialInput} />
+                 </div>
+               );
+             })}
+diff --git a/app/src/TerminalPane.tsx b/app/src/TerminalPane.tsx
+--- a/app/src/TerminalPane.tsx
++++ b/app/src/TerminalPane.tsx
+@@ -12,6 +12,7 @@
+   cmd: string;
+   args?: string[];
+   cwd?: string;
++  initialInput?: string;
+ };
+ 
+ function b64ToBytes(b64: string): Uint8Array {
+@@ -25,7 +26,7 @@
+  * One embedded agent terminal: an xterm.js view bound to a backend PTY session.
+  * Output streams in via `pty-output` events; keystrokes go back via `pty_write`.
+  */
+-export function TerminalPane({ id, cmd, args = [], cwd }: Props) {
++export function TerminalPane({ id, cmd, args = [], cwd, initialInput }: Props) {
+   const ref = useRef<HTMLDivElement>(null);
+   const { t } = useTranslation();
+ 
+@@ -82,6 +83,11 @@
+       fitNow(); // size the PTY to the pane if it's already laid out
+       try {
+         await invoke("pty_spawn", { id, cmd, args, cwd, rows: term.rows, cols: term.cols });
++        if (initialInput) {
++          window.setTimeout(() => {
++            void invoke("pty_write", { id, data: initialInput });
++          }, 800);
++        }
+       } catch (err) {
+         // A failed spawn (missing CLI on PATH, bad cwd, ...) would otherwise
+         // leave this pane blank forever with zero indication anything went
+@@ -103,7 +109,7 @@
+       void invoke("pty_kill", { id });
+       term.dispose();
+     };
+-  }, [id, cmd, cwd]);
++  }, [id, cmd, cwd, initialInput]);
+ 
+   return <div className="term-pane" ref={ref} />;
+ }
