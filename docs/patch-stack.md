@@ -52,8 +52,8 @@ app-v0.1.4
 - `0018-start-codex-pane-without-actas.patch`
   - Codex paneは `actas` なしで起動し、AGMSG受信時のチーム付き指示で処理します。
 - `0019-launch-codex-sol-with-sol-model.patch`
-  - `codex-sol` というCodexメンバーだけを `gpt-5.6-sol` で起動します。
-    既存の `codex` のモデル設定には影響しません。
+  - `Codex-Sol` というCodexメンバーだけを `gpt-5.6-sol` で起動します。
+    既存の `Codex` のモデル設定には影響しません。
 - `0020-launch-qwen-cli-with-team.patch`
   - `local-qwen-cli` を起動するとき、対象チーム名とエージェント名を引数で
     渡します。これにより、Qwenの対話CLI paneがどのチームへ返信するかを

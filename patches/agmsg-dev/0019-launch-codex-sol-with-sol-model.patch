@@ -5,7 +5,7 @@ diff --git a/app/src/App.tsx b/app/src/App.tsx
        const cmdPrefix = type ? (freshCmdPrefixFor.get(type) ?? "/") : "/";
        const options = type ? (freshOptionsFor.get(type) ?? []) : [];
 +      const memberOptions =
-+        type === "codex" && m.name === "codex-sol"
++        type === "codex" && m.name === "Codex-Sol"
 +          ? ["-m", "gpt-5.6-sol", ...options]
 +          : options;
        // Treat app-spawned panes as app-delivered by default. Probing
