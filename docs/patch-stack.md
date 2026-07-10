@@ -51,6 +51,9 @@ app-v0.1.4
   - 起動中paneをメンバー名だけでなくチーム名込みで識別します。
 - `0018-start-codex-pane-without-actas.patch`
   - Codex paneは `actas` なしで起動し、AGMSG受信時のチーム付き指示で処理します。
+- `0019-launch-codex-sol-with-sol-model.patch`
+  - `codex-sol` というCodexメンバーだけを `gpt-5.6-sol` で起動します。
+    既存の `codex` のモデル設定には影響しません。
 
 ## パッチを更新する手順
 
