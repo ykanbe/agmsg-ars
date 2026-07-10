@@ -33,8 +33,8 @@ app-v0.1.4
   - Codex起動後にactasを入れる実験的変更です。後続パッチとの履歴整合のため
     残しています。
 - `0011-bypass-codex-monitor-shim-in-pty-pane.patch`
-  - app paneからCodexを起動するとき、PATH shimではなく実体のCodex binaryを
-    起動します。
+  - app paneからCodexを起動するとき、PATH shimではなくChatGPT.app同梱の
+    Codex CLIを起動します。
 - `0012-inject-codex-agmsg-command-on-message.patch`
   - Codex pane宛にAGMSGメッセージが来たとき、`inbox.sh` / `send.sh` を使う
     短い指示を注入します。
@@ -59,4 +59,3 @@ app-v0.1.4
 2. 失敗する直前までのパッチを適用します。
 3. 失敗したパッチだけを、新しい公式ソースに合わせて作り直します。
 4. 意図が同じならファイル番号は維持します。
-

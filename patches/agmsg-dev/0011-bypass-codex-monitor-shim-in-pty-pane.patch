@@ -6,7 +6,7 @@ diff --git a/app/src/App.tsx b/app/src/App.tsx
        const type = m.types.find((t) => freshCliFor.has(t));
        const cli = type ? freshCliFor.get(type)! : undefined;
 +      const launchCmd =
-+        type === "codex" && cli === "codex" ? "/Applications/Codex.app/Contents/Resources/codex" : cli;
++        type === "codex" && cli === "codex" ? "/Applications/ChatGPT.app/Contents/Resources/codex" : cli;
        const cmdPrefix = type ? (freshCmdPrefixFor.get(type) ?? "/") : "/";
        const options = type ? (freshOptionsFor.get(type) ?? []) : [];
        // Treat app-spawned panes as app-delivered by default. Probing
