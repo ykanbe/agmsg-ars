@@ -1,0 +1,24 @@
+diff --git a/app/src/App.tsx b/app/src/App.tsx
+--- a/app/src/App.tsx
++++ b/app/src/App.tsx
+@@ -542,13 +542,19 @@ export default function App() {
+       // instructions from the app-side monitor.
+       // Types with no spawnable CLI fall back to a shell.
+       const actasPrompt = `${cmdPrefix}${cmdName} actas ${m.name}`;
++      const paneArgs =
++        type === "local-qwen-cli"
++          ? [...memberOptions, "--team", team, "--agent", m.name]
++          : type === "codex"
++            ? [...memberOptions]
++            : [...memberOptions, actasPrompt];
+       const pane: Pane = cli
+         ? {
+             id,
+             label: m.name,
+             team,
+             cmd: launchCmd ?? cli,
+-            args: type === "codex" ? [...memberOptions] : [...memberOptions, actasPrompt],
++            args: paneArgs,
+             cwd: m.project || undefined,
+             cmdPrefix,
+             native: monitors,
