@@ -34,7 +34,8 @@ app-v0.1.4
     残しています。
 - `0011-bypass-codex-monitor-shim-in-pty-pane.patch`
   - app paneからCodexを起動するとき、PATH shimではなくChatGPT.app同梱の
-    Codex CLIを起動します。
+    Codex CLIを起動します。AGMSG側のtype manifestが古いCodex.appパスを返す
+    場合も、このパッチで吸収します。
 - `0012-inject-codex-agmsg-command-on-message.patch`
   - Codex pane宛にAGMSGメッセージが来たとき、`inbox.sh` / `send.sh` を使う
     短い指示を注入します。
