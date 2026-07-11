@@ -54,9 +54,9 @@ app-v0.1.4
 - `0019-launch-codex-sol-with-sol-model.patch`
   - `Codex` を `gpt-5.6-sol / low`、`Codex-Sol` を
     `gpt-5.6-sol / xhigh` で起動します。AGMSG以外のCodex設定には影響しません。
-- `0020-launch-qwen-cli-with-team.patch`
-  - `local-qwen-cli` を起動するとき、対象チーム名とエージェント名を引数で
-    渡します。これにより、Qwenの対話CLI paneがどのチームへ返信するかを
+- `0020-launch-llm-cli-with-team.patch`
+  - `local-llm-cli` を起動するとき、対象チーム名とエージェント名を引数で
+    渡します。これにより、ローカルLLMの対話CLI paneがどのチームへ返信するかを
     確定できます。
 
 ## パッチを更新する手順

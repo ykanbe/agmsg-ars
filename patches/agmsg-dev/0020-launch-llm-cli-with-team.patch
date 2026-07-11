@@ -6,7 +6,7 @@ diff --git a/app/src/App.tsx b/app/src/App.tsx
        // Types with no spawnable CLI fall back to a shell.
        const actasPrompt = `${cmdPrefix}${cmdName} actas ${m.name}`;
 +      const paneArgs =
-+        type === "local-qwen-cli"
++        type === "local-llm-cli"
 +          ? [...memberOptions, "--team", team, "--agent", m.name]
 +          : type === "codex"
 +            ? [...memberOptions]
