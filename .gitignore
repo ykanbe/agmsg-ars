@@ -7,8 +7,11 @@ dist/
 # Temporary/runtime files
 *.log
 *.tmp
+.env
+.env.*
+__pycache__/
+*.pyc
 
 # Dependency/build directories if users build inside the repo
 node_modules/
 target/
-
