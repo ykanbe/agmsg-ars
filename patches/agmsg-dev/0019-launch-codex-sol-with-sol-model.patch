@@ -1,13 +1,15 @@
 diff --git a/app/src/App.tsx b/app/src/App.tsx
 --- a/app/src/App.tsx
 +++ b/app/src/App.tsx
-@@ -523,5 +523,9 @@ export default function App() {
+@@ -523,5 +523,11 @@ export default function App() {
        const cmdPrefix = type ? (freshCmdPrefixFor.get(type) ?? "/") : "/";
        const options = type ? (freshOptionsFor.get(type) ?? []) : [];
 +      const memberOptions =
-+        type === "codex" && m.name === "Codex-Sol"
-+          ? ["-m", "gpt-5.6-sol", ...options]
-+          : options;
++        type === "codex" && m.name === "Codex"
++          ? ["-m", "gpt-5.6-sol", "-c", 'model_reasoning_effort="low"', ...options]
++          : type === "codex" && m.name === "Codex-Sol"
++            ? ["-m", "gpt-5.6-sol", "-c", 'model_reasoning_effort="xhigh"', ...options]
++            : options;
        // Treat app-spawned panes as app-delivered by default. Probing
        // delivery.sh status can block on per-tool hooks files (notably Codex's
        // .codex/hooks.json from a GUI sandbox), and pane startup must never
