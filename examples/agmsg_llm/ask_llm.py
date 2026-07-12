@@ -118,7 +118,7 @@ def main(
     parser.add_argument("--team", default=os.environ.get("AGMSG_TEAM", ""))
     parser.add_argument("--from", dest="sender", default=os.environ.get("LLM_SENDER", default_sender))
     parser.add_argument("--to", dest="recipient", default=os.environ.get("LLM_RECIPIENT", default_recipient))
-    parser.add_argument("--timeout", type=float, default=float(os.environ.get("LLM_REPLY_TIMEOUT", "600")))
+    parser.add_argument("--timeout", type=float, default=float(os.environ.get("LLM_REPLY_TIMEOUT", "300")))
     parser.add_argument("--poll", type=float, default=1.0)
     parser.add_argument(
         "--active-marker-dir",

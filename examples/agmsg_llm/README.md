@@ -4,7 +4,7 @@ These examples connect AGMSG agents to an OpenAI-compatible local LLM endpoint.
 They are provider-neutral and were tested with a local Qwen model served by
 llama.cpp.
 
-The ask helper waits up to 600 seconds by default and correlates each reply with
+The ask helper waits up to 300 seconds by default and correlates each reply with
 its request, so a delayed response cannot be mistaken for a later review. Set
 `LLM_REPLY_TIMEOUT` or pass `--timeout` to override the wait limit.
 
