@@ -73,7 +73,26 @@ pane ends that conversation.
 - `LLM_AGENT`, `LLM_MODEL`, `LLM_BASE_URL`: bridge/client defaults
 - `LLM_PERSONA`: optional Markdown persona file
 - `LLM_BRIDGE_STATE_DIR`: cursor state directory for `api_bridge.py`
+- `LLM_BRIDGE_HEARTBEAT`: heartbeat file written by `api_bridge.py`
+- `LLM_BACKEND_HEALTH_URL`: optional model-server health URL checked in approval mode
 - `LLM_CLI_RUN_DIR`: active-pane marker directory for `interactive_cli.py`
+
+## Fail-closed approval check
+
+For an approval precheck, use `--approval`:
+
+```bash
+LLM_BRIDGE_HEARTBEAT=/path/to/bridge.heartbeat \
+LLM_BACKEND_HEALTH_URL=http://127.0.0.1:8081/health \
+python3 examples/agmsg_llm/ask_llm.py \
+  --approval --from Codex --to LLM-review \
+  "Review this higher-risk action."
+```
+
+Approval mode exits successfully only for an explicit `許可`, `注意して許可`,
+or `問題なし` response. A missing/stale bridge heartbeat, unavailable model
+backend, timeout, rejection, or ambiguous response exits nonzero. The caller
+must treat every nonzero result as denial and must not run the protected action.
 
 Do not commit API keys, AGMSG databases, team state, chat logs, or private
 persona files.

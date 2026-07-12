@@ -8,6 +8,7 @@ import sys
 import time
 import uuid
 from pathlib import Path
+from urllib.request import urlopen
 
 
 AGMSG = Path(os.environ.get("AGMSG_SKILL_DIR", "~/.agents/skills/agmsg")).expanduser()
@@ -16,6 +17,8 @@ SEND = AGMSG / "scripts" / "send.sh"
 IDENTITIES = AGMSG / "scripts" / "identities.sh"
 DEFAULT_CLI_RUN_DIR = Path(os.environ.get("LLM_CLI_RUN_DIR", "~/.agents/llm_cli/run")).expanduser()
 REQUEST_ID_RE = re.compile(r"<!--\s*agmsg-request-id:([0-9a-f]+)\s*-->", re.IGNORECASE)
+APPROVAL_RE = re.compile(r"^(?:判定\s*[:：]\s*)?(?:注意して)?許可(?:してよい)?$|^問題なし$", re.IGNORECASE)
+DENIAL_RE = re.compile(r"^(?:判定\s*[:：]\s*)?(?:拒否|不許可|禁止|中止)(?:してください)?$", re.IGNORECASE)
 
 
 def add_request_id(text, request_id):
@@ -84,7 +87,6 @@ def newest_message_id(team, agent):
 
 def wait_for_reply(team, sender, recipient, after_id, request_id, timeout, poll):
     deadline = time.time() + timeout
-    next_progress = time.time() + 30.0
     while time.time() < deadline:
         rows = run_jsonl([str(API), "get", "teams", team, "messages", "--agent", sender, "--limit", "100"])
         for msg in rows:
@@ -96,13 +98,37 @@ def wait_for_reply(team, sender, recipient, after_id, request_id, timeout, poll)
                 and extract_request_id(msg["body"]) == request_id
             ):
                 return msg
-        now = time.time()
-        if now >= next_progress:
-            remaining = max(0, int(deadline - now))
-            print(f"Still waiting for {recipient} ({remaining}s remaining)", file=sys.stderr, flush=True)
-            next_progress = now + 30.0
         time.sleep(poll)
     return None
+
+
+def bridge_is_running(path, max_age):
+    try:
+        return time.time() - path.stat().st_mtime <= max_age
+    except FileNotFoundError:
+        return False
+
+
+def approval_result(body):
+    lines = [line.strip() for line in strip_request_id(body).splitlines() if line.strip()]
+    if not lines:
+        return None
+    decision_line = lines[0]
+    if DENIAL_RE.search(decision_line):
+        return False
+    if APPROVAL_RE.search(decision_line):
+        return True
+    return None
+
+
+def backend_is_running(url, timeout):
+    if not url:
+        return True
+    try:
+        with urlopen(url, timeout=timeout) as response:
+            return 200 <= response.status < 500
+    except Exception:
+        return False
 
 
 def main(
@@ -120,6 +146,15 @@ def main(
     parser.add_argument("--to", dest="recipient", default=os.environ.get("LLM_RECIPIENT", default_recipient))
     parser.add_argument("--timeout", type=float, default=float(os.environ.get("LLM_REPLY_TIMEOUT", "300")))
     parser.add_argument("--poll", type=float, default=1.0)
+    parser.add_argument("--approval", action="store_true", help="Fail closed unless the reviewer explicitly approves.")
+    parser.add_argument(
+        "--bridge-heartbeat",
+        type=Path,
+        default=Path(os.environ.get("LLM_BRIDGE_HEARTBEAT", "~/.agents/agmsg_llm/state/bridge.heartbeat")).expanduser(),
+    )
+    parser.add_argument("--bridge-max-age", type=float, default=float(os.environ.get("LLM_BRIDGE_MAX_AGE", "15")))
+    parser.add_argument("--backend-health-url", default=os.environ.get("LLM_BACKEND_HEALTH_URL", ""))
+    parser.add_argument("--backend-health-timeout", type=float, default=2.0)
     parser.add_argument(
         "--active-marker-dir",
         type=Path,
@@ -156,6 +191,20 @@ def main(
             file=sys.stderr,
         )
         return 1
+    if args.approval and not bridge_is_running(args.bridge_heartbeat, args.bridge_max_age):
+        print(
+            f"Approval denied: {args.recipient} bridge is not running "
+            f"(heartbeat missing or older than {args.bridge_max_age:g}s)",
+            file=sys.stderr,
+        )
+        return 3
+    if args.approval and not backend_is_running(args.backend_health_url, args.backend_health_timeout):
+        print(
+            f"Approval denied: {args.recipient} model backend is not running "
+            f"({args.backend_health_url})",
+            file=sys.stderr,
+        )
+        return 3
 
     before = newest_message_id(args.team, args.sender)
     request_id = uuid.uuid4().hex
@@ -170,8 +219,16 @@ def main(
         args.poll,
     )
     if reply is None:
-        print(f"Timed out waiting for {args.recipient}", file=sys.stderr)
-        return 1
+        label = "Approval denied" if args.approval else "Timed out"
+        print(f"{label}: timed out waiting for {args.recipient}", file=sys.stderr)
+        return 4 if args.approval else 1
+    if args.approval:
+        decision = approval_result(reply["body"])
+        if decision is not True:
+            reason = "reviewer rejected the action" if decision is False else "reviewer reply was not an explicit approval"
+            print(f"Approval denied: {reason}", file=sys.stderr)
+            print(strip_request_id(reply["body"]), file=sys.stderr)
+            return 5
     print(strip_request_id(reply["body"]))
     return 0
 

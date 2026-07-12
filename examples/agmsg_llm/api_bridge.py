@@ -5,6 +5,7 @@ import os
 import re
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 from urllib.request import Request, urlopen
@@ -12,6 +13,9 @@ from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).resolve().parent
 STATE_DIR = Path(os.environ.get("LLM_BRIDGE_STATE_DIR", "~/.agents/agmsg_llm/state")).expanduser()
+HEARTBEAT_PATH = Path(
+    os.environ.get("LLM_BRIDGE_HEARTBEAT", str(STATE_DIR / "bridge.heartbeat"))
+).expanduser()
 AGMSG = Path(os.environ.get("AGMSG_SKILL_DIR", "~/.agents/skills/agmsg")).expanduser()
 API = AGMSG / "scripts" / "api.sh"
 SEND = AGMSG / "scripts" / "send.sh"
@@ -77,6 +81,17 @@ def load_last_id(team, agent):
 
 def save_last_id(team, agent, value):
     state_path(team, agent).write_text(str(value), encoding="utf-8")
+
+
+def touch_heartbeat():
+    HEARTBEAT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    HEARTBEAT_PATH.touch()
+
+
+def heartbeat_loop(interval=2.0):
+    while True:
+        touch_heartbeat()
+        time.sleep(interval)
 
 
 def mark_seen(team, agent, msg):
@@ -254,6 +269,7 @@ def main():
 
     persona_path = args.persona or default_persona_path()
     print(f"llm api bridge listening: teams={','.join(last_ids.keys())} agent={args.agent} model={args.model} persona={persona_path or 'none'} all_teams={args.all_teams or args.teams.strip() == 'all'}")
+    threading.Thread(target=heartbeat_loop, name="llm-bridge-heartbeat", daemon=True).start()
     next_refresh = time.time() + max(args.team_refresh, 1.0)
     while True:
         try:
