@@ -16,6 +16,7 @@ AGMSG = Path(os.environ.get("AGMSG_SKILL_DIR", "~/.agents/skills/agmsg")).expand
 API = AGMSG / "scripts" / "api.sh"
 SEND = AGMSG / "scripts" / "send.sh"
 DELEGATE_RE = re.compile(r"^\s*AGMSG_DELEGATE\s+([^:]+?)\s*:\s*(.+)\s*$", re.IGNORECASE | re.DOTALL)
+REQUEST_ID_RE = re.compile(r"<!--\s*agmsg-request-id:([0-9a-f]+)\s*-->", re.IGNORECASE)
 
 
 BASE_SYSTEM_PROMPT = """あなたはAGMSGチームに参加しているローカルLLMサブエージェントです。
@@ -29,6 +30,21 @@ BASE_SYSTEM_PROMPT = """あなたはAGMSGチームに参加しているローカ
 - 返信はそのまま相手に送られるので、前置きは短くする。
 - 確信が低いことは断定せず、リスクや仮定として述べる。
 """
+
+
+def extract_request_id(text):
+    match = REQUEST_ID_RE.search(text or "")
+    return match.group(1).lower() if match else None
+
+
+def strip_request_id(text):
+    return REQUEST_ID_RE.sub("", text or "").strip()
+
+
+def add_request_id(text, request_id):
+    if not request_id:
+        return text
+    return f"{strip_request_id(text)}\n\n<!-- agmsg-request-id:{request_id} -->"
 
 
 def run_jsonl(args):
@@ -150,10 +166,12 @@ def delegation_request(reply, delegate_agent):
 
 
 def send_or_delegate(team, agent, msg, reply, delegate_agent):
+    request_id = extract_request_id(msg["body"])
     request = delegation_request(reply, delegate_agent)
     if not request:
-        print(f"reply -> {team}:{msg['from']}: {reply}")
-        run_text([str(SEND), team, agent, msg["from"], reply])
+        correlated_reply = add_request_id(reply, request_id)
+        print(f"reply -> {team}:{msg['from']}: {strip_request_id(reply)}")
+        run_text([str(SEND), team, agent, msg["from"], correlated_reply])
         return
 
     if msg["from"] != delegate_agent:
@@ -161,14 +179,14 @@ def send_or_delegate(team, agent, msg, reply, delegate_agent):
             f"{agent}から{delegate_agent}への委譲です。\n"
             f"元の依頼者: {msg['from']}\n"
             f"依頼: {request}\n\n"
-            f"元メッセージ:\n{msg['body']}"
+            f"元メッセージ:\n{strip_request_id(msg['body'])}"
         )
         print(f"delegate -> {team}:{delegate_agent}: {request}")
         run_text([str(SEND), team, agent, delegate_agent, body])
 
     ack = f"この件は{agent}では直接対応できないため、{delegate_agent}へ依頼しました。"
     print(f"reply -> {team}:{msg['from']}: {ack}")
-    run_text([str(SEND), team, agent, msg["from"], ack])
+    run_text([str(SEND), team, agent, msg["from"], add_request_id(ack, request_id)])
 
 
 def parse_teams(raw):
@@ -261,8 +279,9 @@ def main():
                     if msg["from"] == args.agent or msg["to"] != args.agent:
                         last_ids[team] = mark_seen(team, args.agent, msg)
                         continue
-                    print(f"[{team}:{msg['id']}] {msg['from']} -> {msg['to']}: {msg['body']}")
-                    prompt = f"From: {msg['from']}\nMessage:\n{msg['body']}\n\nReply to {msg['from']}."
+                    clean_body = strip_request_id(msg["body"])
+                    print(f"[{team}:{msg['id']}] {msg['from']} -> {msg['to']}: {clean_body}")
+                    prompt = f"From: {msg['from']}\nMessage:\n{clean_body}\n\nReply to {msg['from']}."
                     system_prompt = load_system_prompt(team, args.agent, persona_path, args.delegate_agent)
                     reply = call_openai_compatible(args.base_url, args.model, system_prompt, prompt, args.temperature, args.max_tokens)
                     send_or_delegate(team, args.agent, msg, reply, args.delegate_agent)

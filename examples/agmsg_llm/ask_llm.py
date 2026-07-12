@@ -6,6 +6,7 @@ import re
 import subprocess
 import sys
 import time
+import uuid
 from pathlib import Path
 
 
@@ -14,6 +15,20 @@ API = AGMSG / "scripts" / "api.sh"
 SEND = AGMSG / "scripts" / "send.sh"
 IDENTITIES = AGMSG / "scripts" / "identities.sh"
 DEFAULT_CLI_RUN_DIR = Path(os.environ.get("LLM_CLI_RUN_DIR", "~/.agents/llm_cli/run")).expanduser()
+REQUEST_ID_RE = re.compile(r"<!--\s*agmsg-request-id:([0-9a-f]+)\s*-->", re.IGNORECASE)
+
+
+def add_request_id(text, request_id):
+    return f"{text.rstrip()}\n\n<!-- agmsg-request-id:{request_id} -->"
+
+
+def extract_request_id(text):
+    match = REQUEST_ID_RE.search(text or "")
+    return match.group(1).lower() if match else None
+
+
+def strip_request_id(text):
+    return REQUEST_ID_RE.sub("", text or "").strip()
 
 
 def recipient_is_active(team, recipient, run_dir):
@@ -67,15 +82,25 @@ def newest_message_id(team, agent):
     return int(rows[-1]["id"]) if rows else 0
 
 
-def wait_for_reply(team, sender, recipient, after_id, timeout, poll):
+def wait_for_reply(team, sender, recipient, after_id, request_id, timeout, poll):
     deadline = time.time() + timeout
+    next_progress = time.time() + 30.0
     while time.time() < deadline:
         rows = run_jsonl([str(API), "get", "teams", team, "messages", "--agent", sender, "--limit", "100"])
         for msg in rows:
             if int(msg["id"]) <= after_id:
                 continue
-            if msg["from"] == recipient and msg["to"] == sender:
+            if (
+                msg["from"] == recipient
+                and msg["to"] == sender
+                and extract_request_id(msg["body"]) == request_id
+            ):
                 return msg
+        now = time.time()
+        if now >= next_progress:
+            remaining = max(0, int(deadline - now))
+            print(f"Still waiting for {recipient} ({remaining}s remaining)", file=sys.stderr, flush=True)
+            next_progress = now + 30.0
         time.sleep(poll)
     return None
 
@@ -93,7 +118,7 @@ def main(
     parser.add_argument("--team", default=os.environ.get("AGMSG_TEAM", ""))
     parser.add_argument("--from", dest="sender", default=os.environ.get("LLM_SENDER", default_sender))
     parser.add_argument("--to", dest="recipient", default=os.environ.get("LLM_RECIPIENT", default_recipient))
-    parser.add_argument("--timeout", type=float, default=300.0)
+    parser.add_argument("--timeout", type=float, default=float(os.environ.get("LLM_REPLY_TIMEOUT", "600")))
     parser.add_argument("--poll", type=float, default=1.0)
     parser.add_argument(
         "--active-marker-dir",
@@ -133,12 +158,21 @@ def main(
         return 1
 
     before = newest_message_id(args.team, args.sender)
-    run_text([str(SEND), args.team, args.sender, args.recipient, prompt])
-    reply = wait_for_reply(args.team, args.sender, args.recipient, before, args.timeout, args.poll)
+    request_id = uuid.uuid4().hex
+    run_text([str(SEND), args.team, args.sender, args.recipient, add_request_id(prompt, request_id)])
+    reply = wait_for_reply(
+        args.team,
+        args.sender,
+        args.recipient,
+        before,
+        request_id,
+        args.timeout,
+        args.poll,
+    )
     if reply is None:
         print(f"Timed out waiting for {args.recipient}", file=sys.stderr)
         return 1
-    print(reply["body"])
+    print(strip_request_id(reply["body"]))
     return 0
 
 
