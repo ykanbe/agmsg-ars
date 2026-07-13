@@ -1,11 +1,11 @@
-diff --git a/app/src-tauri/src/lib.rs b/app/src-tauri/src/lib.rs
-index c8f3c6d..3259001 100644
 --- a/app/src-tauri/src/lib.rs
 +++ b/app/src-tauri/src/lib.rs
-@@ -160,6 +160,25 @@ fn resolve_login_shell() -> String {
+@@ -150,6 +150,28 @@
+         }
+     }
      "/bin/zsh".into()
- }
- 
++}
++
 +fn short_commit(commit: &str) -> &str {
 +    let end = commit.len().min(7);
 +    &commit[..end]
@@ -14,7 +14,7 @@ index c8f3c6d..3259001 100644
 +fn about_version_label() -> String {
 +    let app_version = env!("CARGO_PKG_VERSION");
 +    if !IS_DEV_BUILD {
-+        return app_version.to_string();
++        return format!("{app_version} (core {})", agmsg::pinned_core_version());
 +    }
 +
 +    let base_ref = option_env!("AGMSG_DEV_BASE_REF").unwrap_or("unknown-base");
@@ -22,32 +22,35 @@ index c8f3c6d..3259001 100644
 +        .map(short_commit)
 +        .unwrap_or("unknown");
 +    let patch_count = option_env!("AGMSG_DEV_PATCH_COUNT").unwrap_or("unknown");
-+    format!("{app_version}-dev (base {base_ref} {base_commit}, patches {patch_count})")
-+}
-+
++    format!(
++        "{app_version}-dev (base {base_ref} {base_commit}, patches {patch_count}, core {})",
++        agmsg::pinned_core_version()
++    )
+ }
+
  /// Appends a timestamped line to ~/Library/Logs/agmsg/path-import.log. The
- /// only real diagnostic available for import_login_shell_path(): it runs
- /// before the webview (and thus DevTools) exists, and its failure mode was
-@@ -195,7 +214,13 @@ fn make_menu(app: &AppHandle, lang: &str) -> tauri::Result<Menu<Wry>> {
+@@ -186,23 +208,13 @@
+     let m = |key: &str| menu_i18n::t(lang, "nativeMenu", key, &[]);
+     let m_name = |key: &str| menu_i18n::t(lang, "nativeMenu", key, &[("name", name)]);
+     let icon = tauri::image::Image::from_bytes(include_bytes!("../icons/icon.png")).ok();
+-    // A single combined string (rather than muda's separate version/
+-    // short_version fields, which map to different, platform-divergent
+-    // About-panel slots on macOS vs. a parenthetical suffix on Windows) so
+-    // both platforms show the exact same text verbatim: "0.1.4 (core
+-    // 1.1.6)". CARGO_PKG_VERSION is Cargo.toml's own version, always kept
+-    // in sync with tauri.conf.json/package.json at release time; the core
+-    // version is whatever AGMSG_CORE_REF this build bundled (agmsg::
+-    // pinned_core_version — the same source agmsg_core_version_status's
+-    // "pinned" field reads, so the two can never disagree).
+-    let version = format!("{} (core {})", env!("CARGO_PKG_VERSION"), agmsg::pinned_core_version());
      let about = PredefinedMenuItem::about(
          app,
          Some(&m_name("about")),
--        Some(AboutMetadataBuilder::new().name(Some(name.to_string())).icon(icon).build()),
-+        Some(
-+            AboutMetadataBuilder::new()
-+                .name(Some(name.to_string()))
+         Some(
+             AboutMetadataBuilder::new()
+                 .name(Some(name.to_string()))
+-                .version(Some(version))
 +                .version(Some(about_version_label()))
-+                .icon(icon)
-+                .build(),
-+        ),
-     )?;
-     let check_updates =
-         MenuItem::with_id(app, CHECK_UPDATES_ID, m("checkForUpdates"), true, None::<&str>)?;
-@@ -304,7 +329,6 @@ async fn check_for_updates(app: &AppHandle, user_initiated: bool) {
-                     .blocking_show();
-                 return;
-             }
--
-             let proceed = app
-                 .dialog()
-                 .message(d("updateAvailableBody", &[("name", "agmsg"), ("version", &version)]))
+                 .icon(icon)
+                 .build(),
+         ),

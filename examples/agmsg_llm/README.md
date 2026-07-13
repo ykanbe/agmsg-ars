@@ -5,8 +5,10 @@ They are provider-neutral and were tested with a local Qwen model served by
 llama.cpp.
 
 The ask helper waits up to 300 seconds by default and correlates each reply with
-its request, so a delayed response cannot be mistaken for a later review. Set
-`LLM_REPLY_TIMEOUT` or pass `--timeout` to override the wait limit.
+its request, so a delayed response cannot be mistaken for a later review. The
+correlation marker is kept directly after the body on both request and reply,
+so Markdown rendering does not add an extra blank line. Set `LLM_REPLY_TIMEOUT`
+or pass `--timeout` to override the wait limit.
 
 Requirements:
 

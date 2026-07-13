@@ -3,10 +3,16 @@ import time
 import unittest
 from pathlib import Path
 
-from ask_llm import approval_result, bridge_is_running
+from api_bridge import add_request_id as add_reply_request_id
+from ask_llm import add_request_id, approval_result, bridge_is_running
 
 
 class ApprovalGateTests(unittest.TestCase):
+    def test_request_id_uses_one_line_break_for_request_and_reply(self):
+        expected = "本文\n<!-- agmsg-request-id:abc123 -->"
+        self.assertEqual(add_request_id("本文", "abc123"), expected)
+        self.assertEqual(add_reply_request_id("本文", "abc123"), expected)
+
     def test_accepts_explicit_approval(self):
         self.assertTrue(approval_result("判定: 許可"))
         self.assertTrue(approval_result("判定: 注意して許可"))

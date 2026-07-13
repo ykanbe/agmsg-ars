@@ -150,6 +150,9 @@ if [[ -n "$CORE_RESOURCE_SOURCE" && -d "$CORE_RESOURCE_SOURCE" && ! -e "$BUILD_D
   mkdir -p "$BUILD_DIR/app/src-tauri/resources"
   ditto "$CORE_RESOURCE_SOURCE" "$BUILD_DIR/app/src-tauri/resources/agmsg-core"
   echo "agmsg-core resource を使用します: $CORE_RESOURCE_SOURCE"
+elif [[ -x "$BUILD_DIR/app/scripts/bundle-core.sh" ]]; then
+  echo "公式のbundle-core.shで固定coreを準備します"
+  bash "$BUILD_DIR/app/scripts/bundle-core.sh"
 fi
 
 (

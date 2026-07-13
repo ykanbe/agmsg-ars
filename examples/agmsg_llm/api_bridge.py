@@ -48,7 +48,7 @@ def strip_request_id(text):
 def add_request_id(text, request_id):
     if not request_id:
         return text
-    return f"{strip_request_id(text)}\n\n<!-- agmsg-request-id:{request_id} -->"
+    return f"{strip_request_id(text)}\n<!-- agmsg-request-id:{request_id} -->"
 
 
 def run_jsonl(args):

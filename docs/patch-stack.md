@@ -3,7 +3,7 @@
 このパッチ列を切り出した時点の主な対象base:
 
 ```text
-app-v0.1.4
+app-v0.1.5
 ```
 
 パッチは `patches/agmsg-dev/` にある `.patch` ファイルを、ファイル名の昇順で
@@ -17,18 +17,12 @@ app-v0.1.4
   - 暗色テーマを、白・グレー・ネイビー基調の明るいテーマに変えます。
 - `0003-disable-dev-auto-updater.patch`
   - パッチ版devビルドが公式アップデートで自動上書きされないようにします。
-- `0004-keep-composer-independent.patch`
-  - app-user履歴を隠しても、下部の発言欄は使えるようにします。
 - `0005-use-type-command-prefix-for-spawn.patch`
   - agent typeごとのAGMSGコマンドprefixを尊重します。
 - `0006-timeout-delivery-mode-status.patch`
   - delivery-mode確認が遅い場合に、pane起動を長く止めないようにします。
-- `0007-hide-app-user-history-by-default.patch`
-  - 重複して見えるapp-user履歴をデフォルトで隠します。
 - `0008-do-not-probe-delivery-mode-before-spawn.patch`
   - pane起動前に同期的なdelivery-mode確認をしないようにします。
-- `0009-japanese-composer-sender-label.patch`
-  - 発言欄の日本語を `送信者` 表記にします。
 - `0010-inject-codex-actas-after-pty-start.patch`
   - Codex起動後にactasを入れる実験的変更です。後続パッチとの履歴整合のため
     残しています。
@@ -42,7 +36,9 @@ app-v0.1.4
 - `0013-do-not-inject-codex-actas-on-startup.patch`
   - Codex pane起動時の `actas` 注入を止めます。
 - `0014-split-team-and-chat-room-tabs.patch`
-  - `# チームルーム` と `# チャットルーム` をタブ化し、チャット側を吹き出し表示にします。
+  - チームルームとチャットルームを固定タブに分け、発言窓を選択中の画面の
+    下に配置します。ユーザーチャットの履歴はチャットルーム内だけに表示し、
+    ペイン下の常時表示・最小化・最大化の追加UIは使いません。
 - `0015-show-dev-build-provenance.patch`
   - 公式baseとローカルパッチ情報をdevビルドに埋め込み、表示できるようにします。
 - `0016-match-official-codex-spawn-command.patch`
@@ -52,12 +48,21 @@ app-v0.1.4
 - `0018-start-codex-pane-without-actas.patch`
   - Codex paneは `actas` なしで起動し、AGMSG受信時のチーム付き指示で処理します。
 - `0019-launch-codex-sol-with-sol-model.patch`
-  - `Codex` を `gpt-5.6-sol / low`、`Codex-Sol` を
+  - `Codex` を `gpt-5.6-luna / max`、`Codex-Sol` を
     `gpt-5.6-sol / xhigh` で起動します。AGMSG以外のCodex設定には影響しません。
 - `0020-launch-llm-cli-with-team.patch`
   - `local-llm-cli` を起動するとき、対象チーム名とエージェント名を引数で
     渡します。これにより、ローカルLLMの対話CLI paneがどのチームへ返信するかを
     確定できます。
+
+## 適用対象から外した旧パッチ
+
+公式 `app-v0.1.5` に同等の機能が入ったものと、今回の運用では不要と判断したものは
+適用対象から外し、内容だけ `patches/agmsg-dev/retired/` に保存しています。
+
+- `0004-keep-composer-independent.patch`
+- `0007-hide-app-user-history-by-default.patch`
+- `0009-japanese-composer-sender-label.patch`
 
 ## パッチを更新する手順
 

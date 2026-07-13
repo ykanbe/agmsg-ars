@@ -1,8 +1,8 @@
 diff --git a/app/src/App.tsx b/app/src/App.tsx
-index f1731f6..6daf974 100644
+index 6e8d84f..8e2a9eb 100644
 --- a/app/src/App.tsx
 +++ b/app/src/App.tsx
-@@ -70,6 +70,19 @@ type Modal =
+@@ -107,6 +107,19 @@ type Modal =
  export const APP_USER_TYPE = "agmsg-app";
  // Team-room history page size — the initial load, and each scroll-up "load more".
  const ROOM_PAGE_SIZE = 30;
@@ -22,7 +22,7 @@ index f1731f6..6daf974 100644
  // Persists which team was selected across restarts. Window/pane state is
  // deliberately NOT persisted (yet) — just landing on the same team is
  // enough for now; panes always start fresh each launch anyway (they're
-@@ -1093,7 +1106,7 @@ export default function App() {
+@@ -1462,7 +1475,7 @@ export default function App() {
                      <b className="mf">{g.from}</b>
                      <span className="arrow">→</span>
                      <b className="mt">{g.to}</b>
@@ -31,12 +31,12 @@ index f1731f6..6daf974 100644
                    </div>
                    {g.items.map((m) => (
                      <div className="grp-body" key={m.id}>
-@@ -1262,7 +1275,7 @@ export default function App() {
-           >
-             {myThread.map((m) => (
-               <div className={m.from === appUser ? "chat-line out" : "chat-line in"} key={m.id}>
--                <span className="chat-time">{m.created_at.slice(11, 19)}</span>
-+                <span className="chat-time">{formatMessageTime(m.created_at)}</span>
-                 <span className="chat-peer">
-                   {m.from === appUser
-                     ? t("chat.peer.to", { to: m.to })
+@@ -1708,7 +1721,7 @@ export default function App() {
+               <div className="appuser-chat" ref={chatRef} onClick={() => composerInputRef.current?.focus()}>
+                 {myThread.map((m) => (
+                   <div className={m.from === appUser ? "chat-line out" : "chat-line in"} key={m.id}>
+-                    <span className="chat-time">{m.created_at.slice(11, 19)}</span>
++                    <span className="chat-time">{formatMessageTime(m.created_at)}</span>
+                     <span className="chat-peer">
+                       {m.from === appUser
+                         ? t("chat.peer.to", { to: m.to })
