@@ -47,13 +47,23 @@ app-v0.1.5
   - 起動中paneをメンバー名だけでなくチーム名込みで識別します。
 - `0018-start-codex-pane-without-actas.patch`
   - Codex paneは `actas` なしで起動し、AGMSG受信時のチーム付き指示で処理します。
-- `0019-launch-codex-sol-with-sol-model.patch`
-  - `Codex` を `gpt-5.6-luna / max`、`Codex-Sol` を
-    `gpt-5.6-sol / xhigh` で起動します。AGMSG以外のCodex設定には影響しません。
+- `0019-launch-codex-with-luna-model.patch`
+  - AGMSGの単一の `Codex` memberを `gpt-5.6-luna / max` で起動します。
+    SolはAGMSG memberにせず、通常Codexのnative subagentとして使います。
 - `0020-launch-llm-cli-with-team.patch`
   - `local-llm-cli` を起動するとき、対象チーム名とエージェント名を引数で
     渡します。これにより、ローカルLLMの対話CLI paneがどのチームへ返信するかを
     確定できます。
+- `0021-sanitize-codex-session-env.patch`
+  - AGMSG自体をCodexから起動した場合でも、子Codexへ親タスクの
+    `CODEX_CI` / `CODEX_THREAD_ID` などを継承させません。通常の
+    `CODEX_HOME` は維持し、対話TUIとして起動できるようにします。
+- `0022-answer-terminal-status-queries.patch`
+  - xterm.jsに届いたCodexの端末状態・色・Kittyキーボード問い合わせへPTY経由で
+    応答し、TUIが初期化途中で停止しないようにします。
+- `0023-open-codex-model-picker.patch`
+  - `codex` paneのヘッダーにlucideアイコンのボタンを追加し、Codex標準の
+    `/model` pickerをPTY経由で開きます。独自のモデルプリセットは追加しません。
 
 ## 適用対象から外した旧パッチ
 
@@ -63,6 +73,7 @@ app-v0.1.5
 - `0004-keep-composer-independent.patch`
 - `0007-hide-app-user-history-by-default.patch`
 - `0009-japanese-composer-sender-label.patch`
+- `0019-launch-codex-sol-with-sol-model.patch`
 
 ## パッチを更新する手順
 

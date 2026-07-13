@@ -1,0 +1,45 @@
+diff --git a/app/src-tauri/src/pty.rs b/app/src-tauri/src/pty.rs
+--- a/app/src-tauri/src/pty.rs
++++ b/app/src-tauri/src/pty.rs
+@@ -20,5 +20,6 @@
+ use std::collections::HashMap;
+ use std::io::{Read, Write};
++use std::path::Path;
+ use std::sync::{Arc, Mutex};
+ use std::thread;
+ use std::time::Duration;
+@@ -151,5 +152,19 @@ pub fn pty_spawn(
+         builder.cwd(dir);
+     }
+     builder.env("TERM", "xterm-256color");
++    if is_codex_command(&cmd) {
++        // A GUI launched from Codex can inherit the parent task's control
++        // variables. They make this child look like the existing Codex task
++        // (and CODEX_CI can suppress the interactive TUI), so remove them
++        // while preserving the user's normal CODEX_HOME configuration.
++        for key in [
++            "CODEX_CI",
++            "CODEX_INTERNAL_ORIGINATOR_OVERRIDE",
++            "CODEX_SHELL",
++            "CODEX_THREAD_ID",
++        ] {
++            builder.env_remove(key);
++        }
++    }
+     // Explicitly set PATH from what import_login_shell_path() resolved at
+     // startup (lib.rs) rather than relying on this child implicitly
+@@ -196,5 +210,12 @@ pub fn pty_spawn(
+     manager.sessions.lock().unwrap().insert(id, PtySession { master: pair.master, writer, pid });
+     Ok(())
+ }
++
++fn is_codex_command(cmd: &str) -> bool {
++    Path::new(cmd)
++        .file_name()
++        .and_then(|name| name.to_str())
++        .is_some_and(|name| name == "codex")
++}
+ 
+ /// Forward keystrokes/data from xterm.js into the PTY.
+ #[tauri::command]
+ pub fn pty_write(manager: State<'_, PtyManager>, id: String, data: String) -> Result<(), String> {
