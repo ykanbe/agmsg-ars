@@ -1,0 +1,196 @@
+diff --git a/app/src/App.tsx b/app/src/App.tsx
+index 39b36b4..a7898b3 100644
+--- a/app/src/App.tsx
++++ b/app/src/App.tsx
+@@ -6,6 +6,7 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
+ import {
+   PanelLeftClose,
+   Settings,
++  Sparkles,
+   Users,
+ } from "lucide-react";
+ import { TerminalPane } from "./TerminalPane";
+@@ -60,6 +61,7 @@ type Pane = {
+   cwd?: string;
+   initialInput?: string;
+   cmdPrefix?: string;
++  agentType?: string;
+   /** True only when this pane's type self-delivers agmsg messages (manifest
+    *  monitor=yes) — the app must NOT also inject there (double-delivery).
+    *  False for actas-booted types with no monitor of their own (codex,
+@@ -606,6 +608,7 @@ export default function App() {
+             args: paneArgs,
+             cwd: m.project || undefined,
+             cmdPrefix,
++            agentType: type,
+             native: monitors,
+           }
+         : { id, label: m.name, team, cmd: "bash", args: [], cwd: m.project || undefined, native: false };
+@@ -1589,6 +1592,30 @@ export default function App() {
+                           : t("pane.monitorTip.app")}
+                       </span>
+                     </span>
++                    {p.agentType === "codex" && (
++                      <button
++                        type="button"
++                        className="pane-header-model"
++                        onClick={async (e) => {
++                          e.stopPropagation();
++                          e.currentTarget
++                            .closest(".pane-cell")
++                            ?.querySelector<HTMLTextAreaElement>(".xterm-helper-textarea")
++                            ?.focus();
++                          try {
++                            await invoke("pty_write", { id: p.id, data: "/model" });
++                            await new Promise((resolve) => window.setTimeout(resolve, 80));
++                            await invoke("pty_write", { id: p.id, data: "\r" });
++                          } catch (err) {
++                            console.error("Failed to open Codex model picker", err);
++                          }
++                        }}
++                        title={t("pane.selectModel")}
++                        aria-label={t("pane.selectModel")}
++                      >
++                        <Sparkles size={13} aria-hidden="true" />
++                      </button>
++                    )}
+                     <button
+                       className="pane-header-close"
+                       onClick={() => setModal({ kind: "closePane", paneId: p.id })}
+diff --git a/app/src/App.css b/app/src/App.css
+index 64491b6..e5fdc11 100644
+--- a/app/src/App.css
++++ b/app/src/App.css
+@@ -1150,6 +1150,24 @@ body.resizing-row {
+ .monitor-dot:hover .monitor-tip {
+   display: block;
+ }
++.pane-header-model {
++  display: inline-flex;
++  align-items: center;
++  justify-content: center;
++  flex: 0 0 auto;
++  width: 24px;
++  height: 22px;
++  padding: 0;
++  border: none;
++  border-radius: 3px;
++  background: transparent;
++  color: var(--muted);
++  cursor: pointer;
++}
++.pane-header-model:hover {
++  background: var(--panel-2);
++  color: var(--accent);
++}
+ .pane-header-close {
+   background: none;
+   border: none;
+diff --git a/app/src/i18n/locales/de.json b/app/src/i18n/locales/de.json
+index 4f440b3..4af098f 100644
+--- a/app/src/i18n/locales/de.json
++++ b/app/src/i18n/locales/de.json
+@@ -59,6 +59,7 @@
+     },
+     "closeTitle": "Bereich schließen",
+     "closeGlyph": "×",
++    "selectModel": "Codex-Modell auswählen",
+     "swapTitle": "Klicken, dann auf ein anderes Panel in diesem Tab klicken, um die Positionen zu tauschen"
+   },
+   "chat": {
+diff --git a/app/src/i18n/locales/en.json b/app/src/i18n/locales/en.json
+index 697d426..85c3d27 100644
+--- a/app/src/i18n/locales/en.json
++++ b/app/src/i18n/locales/en.json
+@@ -63,6 +63,7 @@
+     },
+     "closeTitle": "close pane",
+     "closeGlyph": "×",
++    "selectModel": "Choose Codex model",
+     "swapTitle": "Click, then click another pane in this tab to swap positions"
+   },
+   "chat": {
+diff --git a/app/src/i18n/locales/es.json b/app/src/i18n/locales/es.json
+index a88667a..bf58a29 100644
+--- a/app/src/i18n/locales/es.json
++++ b/app/src/i18n/locales/es.json
+@@ -59,6 +59,7 @@
+     },
+     "closeTitle": "cerrar panel",
+     "closeGlyph": "×",
++    "selectModel": "Elegir modelo de Codex",
+     "swapTitle": "Haz clic y luego haz clic en otro panel de esta pestaña para intercambiar posiciones"
+   },
+   "chat": {
+diff --git a/app/src/i18n/locales/fr.json b/app/src/i18n/locales/fr.json
+index c06b0f8..1d91e5e 100644
+--- a/app/src/i18n/locales/fr.json
++++ b/app/src/i18n/locales/fr.json
+@@ -59,6 +59,7 @@
+     },
+     "closeTitle": "fermer le panneau",
+     "closeGlyph": "×",
++    "selectModel": "Choisir le modèle Codex",
+     "swapTitle": "Cliquez, puis cliquez sur un autre panneau de cet onglet pour échanger les positions"
+   },
+   "chat": {
+diff --git a/app/src/i18n/locales/ja.json b/app/src/i18n/locales/ja.json
+index 11514aa..3d7771f 100644
+--- a/app/src/i18n/locales/ja.json
++++ b/app/src/i18n/locales/ja.json
+@@ -60,6 +60,7 @@
+     },
+     "closeTitle": "ペインを閉じる",
+     "closeGlyph": "×",
++    "selectModel": "Codexのモデルを選択",
+     "swapTitle": "クリックしてから、このタブ内の別のペインをクリックすると位置を入れ替えます"
+   },
+   "chat": {
+diff --git a/app/src/i18n/locales/ko.json b/app/src/i18n/locales/ko.json
+index ad13b5b..e94e460 100644
+--- a/app/src/i18n/locales/ko.json
++++ b/app/src/i18n/locales/ko.json
+@@ -59,6 +59,7 @@
+     },
+     "closeTitle": "창 닫기",
+     "closeGlyph": "×",
++    "selectModel": "Codex 모델 선택",
+     "swapTitle": "클릭한 다음 이 탭의 다른 패널을 클릭하면 위치가 바뀝니다"
+   },
+   "chat": {
+diff --git a/app/src/i18n/locales/pt-BR.json b/app/src/i18n/locales/pt-BR.json
+index 2f8db07..e44e861 100644
+--- a/app/src/i18n/locales/pt-BR.json
++++ b/app/src/i18n/locales/pt-BR.json
+@@ -59,6 +59,7 @@
+     },
+     "closeTitle": "fechar painel",
+     "closeGlyph": "×",
++    "selectModel": "Escolher modelo do Codex",
+     "swapTitle": "Clique e depois clique em outro painel desta aba para trocar as posições"
+   },
+   "chat": {
+diff --git a/app/src/i18n/locales/zh-CN.json b/app/src/i18n/locales/zh-CN.json
+index 76ff196..9e7613c 100644
+--- a/app/src/i18n/locales/zh-CN.json
++++ b/app/src/i18n/locales/zh-CN.json
+@@ -59,6 +59,7 @@
+     },
+     "closeTitle": "关闭面板",
+     "closeGlyph": "×",
++    "selectModel": "选择 Codex 模型",
+     "swapTitle": "点击后再点击此标签页中的另一个面板即可交换位置"
+   },
+   "chat": {
+diff --git a/app/src/i18n/locales/zh-TW.json b/app/src/i18n/locales/zh-TW.json
+index d25c29e..ba0bcd1 100644
+--- a/app/src/i18n/locales/zh-TW.json
++++ b/app/src/i18n/locales/zh-TW.json
+@@ -59,6 +59,7 @@
+     },
+     "closeTitle": "關閉面板",
+     "closeGlyph": "×",
++    "selectModel": "選擇 Codex 模型",
+     "swapTitle": "點擊後再點擊此分頁中的另一個面板即可交換位置"
+   },
+   "chat": {

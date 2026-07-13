@@ -13,7 +13,7 @@ diff --git a/app/src/App.tsx b/app/src/App.tsx
        // Treat app-spawned panes as app-delivered by default. Probing
        // delivery.sh status can block on per-tool hooks files (notably Codex's
        // .codex/hooks.json from a GUI sandbox), and pane startup must never
-@@ -550,7 +554,7 @@ export default function App() {
+@@ -550,7 +556,7 @@ export default function App() {
              label: m.name,
              team,
              cmd: launchCmd ?? cli,
