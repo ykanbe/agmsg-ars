@@ -51,9 +51,9 @@ app-v0.1.5
   - AGMSGの単一の `Codex` memberを `gpt-5.6-luna / max` で起動します。
     SolはAGMSG memberにせず、通常Codexのnative subagentとして使います。
 - `0020-launch-llm-cli-with-team.patch`
-  - `local-llm-cli` を起動するとき、対象チーム名とエージェント名を引数で
-    渡します。これにより、ローカルLLMの対話CLI paneがどのチームへ返信するかを
-    確定できます。
+  - type manifestで `team_agent_args=yes` を宣言したCLIへ、対象チーム名と
+    エージェント名を引数で渡します。これにより、ローカルLLMの対話CLI paneが
+    どのチームへ返信するかを確定できます。
 - `0021-sanitize-codex-session-env.patch`
   - AGMSG自体をCodexから起動した場合でも、子Codexへ親タスクの
     `CODEX_CI` / `CODEX_THREAD_ID` などを継承させません。通常の
@@ -64,6 +64,10 @@ app-v0.1.5
 - `0023-open-codex-model-picker.patch`
   - `codex` paneのヘッダーにlucideアイコンのボタンを追加し、Codex標準の
     `/model` pickerをPTY経由で開きます。独自のモデルプリセットは追加しません。
+- `0024-discover-trusted-type-plugins.patch`
+  - 公式コアのtype registryと同じ優先順で、組み込みtype、`plugins/types`、
+    `AGMSG_PLUGIN_DIRS` を列挙します。外部typeは `trusted-plugins` に登録された
+    パスだけを起動候補にし、後順位の信頼済みプラグインによる上書きを認めます。
 
 ## 適用対象から外した旧パッチ
 

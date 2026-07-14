@@ -66,7 +66,28 @@ python3 examples/agmsg_llm/interactive_cli.py \
 ```
 
 The interactive client keeps context only in the running process. Closing the
-pane ends that conversation.
+pane ends that conversation. Each turn includes its actual AGMSG sender in the
+model input, so one shared pane can distinguish human and agent participants.
+
+To let the patched desktop app launch this client, create a trusted AGMSG type
+plugin under `~/.agents/skills/agmsg/plugins/types/<type-name>/`. Its
+`type.conf` should include:
+
+```ini
+name=local-llm-cli
+template=template.md
+cli=/absolute/path/to/interactive-llm-wrapper
+spawnable=yes
+team_agent_args=yes
+monitor=no
+delivery_modes=off
+```
+
+Then trust it with
+`~/.agents/skills/agmsg/scripts/plugin.sh trust types/local-llm-cli`. The
+desktop app passes `--team <selected-team> --agent <member-name>` when opening
+the pane. Keep machine-specific paths and private personas outside this public
+repository.
 
 ## Environment variables
 
