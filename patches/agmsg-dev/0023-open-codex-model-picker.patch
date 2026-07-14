@@ -10,18 +10,18 @@ index 39b36b4..a7898b3 100644
    Users,
  } from "lucide-react";
  import { TerminalPane } from "./TerminalPane";
-@@ -60,6 +61,7 @@ type Pane = {
+@@ -58,6 +59,7 @@ type Pane = {
    cwd?: string;
-   initialInput?: string;
    cmdPrefix?: string;
+   teamAgentArgs?: boolean;
 +  agentType?: string;
    /** True only when this pane's type self-delivers agmsg messages (manifest
     *  monitor=yes) — the app must NOT also inject there (double-delivery).
     *  False for actas-booted types with no monitor of their own (codex,
-@@ -606,6 +608,7 @@ export default function App() {
-             args: paneArgs,
+@@ -611,6 +613,7 @@ export default function App() {
              cwd: m.project || undefined,
              cmdPrefix,
+             teamAgentArgs,
 +            agentType: type,
              native: monitors,
            }

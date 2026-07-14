@@ -1,17 +1,18 @@
 diff --git a/app/src-tauri/src/agmsg.rs b/app/src-tauri/src/agmsg.rs
+index 1ef2b59..84466b0 100644
 --- a/app/src-tauri/src/agmsg.rs
 +++ b/app/src-tauri/src/agmsg.rs
-@@ -240,6 +240,9 @@ pub struct AgentType {
+@@ -239,6 +239,8 @@ pub struct AgentType {
      /// Prefix for the agmsg actas boot command (manifest `cmd_prefix=`).
      /// Most CLIs use "/", while Codex uses "$".
      pub cmd_prefix: String,
-+    /// Pass `--team <team> --agent <member>` when launching this CLI.
-+    /// Used by AGMSG-aware interactive wrappers that do not parse actas prompts.
++    /// Pass the team and member as argv to AGMSG-aware wrapper CLIs.
 +    pub team_agent_args: bool,
      /// Extra CLI argv tokens for this type from agmsg's spawn-options file
      /// (see scripts/lib/spawn-options.sh), e.g. ["--permission-mode",
      /// "acceptEdits"]. Spliced before the actas boot prompt, same relative
-@@ -348,6 +351,7 @@ pub fn agmsg_spawnable_types() -> Result<Vec<AgentType>, String> {
+@@ -346,8 +348,9 @@ pub fn agmsg_spawnable_types() -> Result<Vec<AgentType>, String> {
+             let cmd_prefix = manifest_get(&conf, "cmd_prefix")
                  .filter(|s| !s.is_empty())
                  .unwrap_or_else(|| "/".to_string());
 +            let team_agent_args = manifest_get(&conf, "team_agent_args").as_deref() == Some("yes");
@@ -20,10 +21,22 @@ diff --git a/app/src-tauri/src/agmsg.rs b/app/src-tauri/src/agmsg.rs
 +            types.push(AgentType { name, cli, cmd_prefix, team_agent_args, options });
          }
      }
+     types.sort_by(|a, b| a.name.cmp(&b.name));
 diff --git a/app/src/App.tsx b/app/src/App.tsx
+index b8cd76c..ec9d2c3 100644
 --- a/app/src/App.tsx
 +++ b/app/src/App.tsx
-@@ -132,4 +132,10 @@ const PANE_DRAG_MIME = "application/x-agmsg-pane";
+@@ -57,6 +57,7 @@ type Pane = {
+   args: string[];
+   cwd?: string;
+   cmdPrefix?: string;
++  teamAgentArgs?: boolean;
+   /** True only when this pane's type self-delivers agmsg messages (manifest
+    *  monitor=yes) — the app must NOT also inject there (double-delivery).
+    *  False for actas-booted types with no monitor of their own (codex,
+@@ -129,7 +130,13 @@ const LAST_TEAM_KEY = "agmsg-app-last-team";
+ // pane-cell's drop zone.
+ const PANE_DRAG_MIME = "application/x-agmsg-pane";
  // A spawnable agent type discovered from agmsg's type registry.
 -export type AgentType = { name: string; cli: string; cmd_prefix: string; options: string[] };
 +export type AgentType = {
@@ -36,36 +49,56 @@ diff --git a/app/src/App.tsx b/app/src/App.tsx
 -
 +
  export default function App() {
-@@ -563,5 +569,6 @@ export default function App() {
+   const { t } = useTranslation();
+@@ -458,7 +465,9 @@ export default function App() {
+         // territory since it can no longer contain newlines or run long.
+         const flat = e.payload.body.replace(/\s+/g, " ").trim();
+         const preview = flat.length > 80 ? `${flat.slice(0, 80)}…` : flat;
+-        const kickoff = `[agmsg] ${e.payload.from}: "${preview}" — run ${pane.cmdPrefix ?? "/"}${cmdName} to check it.`;
++        const kickoff = pane.teamAgentArgs
++          ? `[agmsg] New message in team ${e.payload.team} from ${e.payload.from} to ${e.payload.to}. Preview: "${preview}".`
++          : `[agmsg] ${e.payload.from}: "${preview}" — run ${pane.cmdPrefix ?? "/"}${cmdName} to check it.`;
+         void invoke("pty_inject", { id: pane.id, text: kickoff });
+       }
+     });
+@@ -552,8 +561,9 @@ export default function App() {
        const types = await invoke<AgentType[]>("agmsg_spawnable_types").catch(() => spawnTypes);
        const freshCliFor = new Map(types.map((t) => [t.name, t.cli]));
        const freshCmdPrefixFor = new Map(types.map((t) => [t.name, t.cmd_prefix || "/"]));
 +      const freshTeamAgentArgsFor = new Map(types.map((t) => [t.name, t.team_agent_args]));
        const freshOptionsFor = new Map(types.map((t) => [t.name, t.options]));
        setSpawnTypes(types);
-@@ -576,5 +583,6 @@ export default function App() {
+-
++
+       const type = m.types.find((t) => freshCliFor.has(t));
+       const cli = type ? freshCliFor.get(type)! : undefined;
+@@ -563,6 +573,7 @@ export default function App() {
          type === "codex" && m.name === "Codex"
            ? ["-m", "gpt-5.6-luna", "-c", 'model_reasoning_effort="max"', ...options]
            : options;
 +      const teamAgentArgs = type ? (freshTeamAgentArgsFor.get(type) ?? false) : false;
-       // Treat app-spawned panes as app-delivered by default. Probing
-       // delivery.sh status can block on per-tool hooks files (notably Codex's
-@@ -591,12 +599,17 @@ export default function App() {
-       // instructions from the app-side monitor.
+       // `native` = "this (type, project) actually self-delivers agmsg
+       // messages" — asked from agmsg's own delivery.sh status (mode derived
+       // from the project's real hooks file), NOT a static type.conf flag.
+@@ -586,15 +597,20 @@ export default function App() {
+       // order spawn.sh splices them in — so the agent comes up as the real
+       // member (can send as itself, and self-delivers if its type monitors).
        // Types with no spawnable CLI fall back to a shell.
-       const actasPrompt = `${cmdPrefix}${cmdName} actas ${m.name}`;
++      const actasPrompt = `${cmdPrefix}${cmdName} actas ${m.name}`;
 +      const paneArgs = teamAgentArgs
 +        ? [...memberOptions, "--team", team, "--agent", m.name]
-+        : type === "codex"
-+          ? [...memberOptions]
-+          : [...memberOptions, actasPrompt];
++        : [...memberOptions, actasPrompt];
        const pane: Pane = cli
          ? {
              id,
              label: m.name,
              team,
              cmd: launchCmd ?? cli,
--            args: type === "codex" ? [...memberOptions] : [...memberOptions, actasPrompt],
+-            args: [...memberOptions, `${cmdPrefix}${cmdName} actas ${m.name}`],
 +            args: paneArgs,
              cwd: m.project || undefined,
              cmdPrefix,
++            teamAgentArgs,
+             native: monitors,
+           }
+         : { id, label: m.name, team, cmd: "bash", args: [], cwd: m.project || undefined, native: false };

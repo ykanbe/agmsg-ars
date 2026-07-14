@@ -18,42 +18,26 @@ app-v0.1.5
 - `0003-disable-dev-auto-updater.patch`
   - パッチ版devビルドが公式アップデートで自動上書きされないようにします。
 - `0005-use-type-command-prefix-for-spawn.patch`
-  - agent typeごとのAGMSGコマンドprefixを尊重します。
-- `0006-timeout-delivery-mode-status.patch`
-  - delivery-mode確認が遅い場合に、pane起動を長く止めないようにします。
-- `0008-do-not-probe-delivery-mode-before-spawn.patch`
-  - pane起動前に同期的なdelivery-mode確認をしないようにします。
-- `0010-inject-codex-actas-after-pty-start.patch`
-  - Codex起動後にactasを入れる実験的変更です。後続パッチとの履歴整合のため
-    残しています。
+  - agent typeごとのAGMSGコマンドprefixを、起動時のactasと受信時のkickoffで
+    尊重します。
 - `0011-bypass-codex-monitor-shim-in-pty-pane.patch`
-  - app paneからCodexを起動するとき、PATH shimではなくChatGPT.app同梱の
-    Codex CLIを起動します。AGMSG側のtype manifestが古いCodex.appパスを返す
-    場合も、このパッチで吸収します。
-- `0012-inject-codex-agmsg-command-on-message.patch`
-  - Codex pane宛にAGMSGメッセージが来たとき、`inbox.sh` / `send.sh` を使う
-    短い指示を注入します。
-- `0013-do-not-inject-codex-actas-on-startup.patch`
-  - Codex pane起動時の `actas` 注入を止めます。
+  - Codex paneだけはPATH上のmonitor shimを通さず、ChatGPT.app同梱CLIを
+    アプリ内PTYで直接起動します。配送は公式のPTY注入経路を使います。
 - `0014-split-team-and-chat-room-tabs.patch`
   - チームルームとチャットルームを固定タブに分け、発言窓を選択中の画面の
     下に配置します。ユーザーチャットの履歴はチャットルーム内だけに表示し、
     ペイン下の常時表示・最小化・最大化の追加UIは使いません。
 - `0015-show-dev-build-provenance.patch`
   - 公式baseとローカルパッチ情報をdevビルドに埋め込み、表示できるようにします。
-- `0016-match-official-codex-spawn-command.patch`
-  - Codex起動コマンドの形を公式アプリ側に寄せます。
 - `0017-scope-running-panes-by-team.patch`
   - 起動中paneをメンバー名だけでなくチーム名込みで識別します。
-- `0018-start-codex-pane-without-actas.patch`
-  - Codex paneは `actas` なしで起動し、AGMSG受信時のチーム付き指示で処理します。
 - `0019-launch-codex-with-luna-model.patch`
   - AGMSGの単一の `Codex` memberを `gpt-5.6-luna / max` で起動します。
-    SolはAGMSG memberにせず、通常Codexのnative subagentとして使います。
 - `0020-launch-llm-cli-with-team.patch`
   - type manifestで `team_agent_args=yes` を宣言したCLIへ、対象チーム名と
     エージェント名を引数で渡します。これにより、ローカルLLMの対話CLI paneが
-    どのチームへ返信するかを確定できます。
+    どのチームへ返信するかを確定できます。受信時はCLIが解釈できるチーム付き
+    イベントを、公式のPTY注入経路で渡します。
 - `0021-sanitize-codex-session-env.patch`
   - AGMSG自体をCodexから起動した場合でも、子Codexへ親タスクの
     `CODEX_CI` / `CODEX_THREAD_ID` などを継承させません。通常の
@@ -77,7 +61,19 @@ app-v0.1.5
 - `0004-keep-composer-independent.patch`
 - `0007-hide-app-user-history-by-default.patch`
 - `0009-japanese-composer-sender-label.patch`
+- `0006-timeout-delivery-mode-status.patch`
+- `0008-do-not-probe-delivery-mode-before-spawn.patch`
+- `0010-inject-codex-actas-after-pty-start.patch`
+- `0012-inject-codex-agmsg-command-on-message.patch`
+- `0013-do-not-inject-codex-actas-on-startup.patch`
+- `0016-match-official-codex-spawn-command.patch`
+- `0018-start-codex-pane-without-actas.patch`
 - `0019-launch-codex-sol-with-sol-model.patch`
+
+配送経路を変更していた旧パッチは、公式 `app-v0.1.5` の
+`delivery-mode判定 → 非native paneへのPTY注入` に戻すため退役しました。
+CodexだけはPATH上のmonitor shimを避けるため同梱CLIを直接使い、それ以外の
+CLI実体はAGMSGの信頼済みtype manifestから選びます。
 
 ## パッチを更新する手順
 
