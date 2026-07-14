@@ -28,6 +28,9 @@ BASE_SYSTEM_PROMPT = """You are an interactive local LLM member in an AGMSG team
 Reply in concise Japanese. You are a conversation partner and a lightweight coding helper.
 You cannot operate files, commands, or external services directly. Keep the current
 conversation coherent, but do not claim long-term memory after this CLI session ends.
+Each user message identifies its AGMSG sender. Treat different sender names as distinct
+participants, reply to the named sender, and do not attribute one participant's messages
+or intentions to another participant.
 """
 
 
@@ -54,6 +57,13 @@ def system_prompt(team: str, agent: str, persona: Path | None) -> str:
     if persona:
         parts.extend(["\n# Persona and Training Notes\n", persona.read_text(encoding="utf-8")])
     return "".join(parts)
+
+
+def incoming_user_message(sender: str, body: str) -> dict:
+    return {
+        "role": "user",
+        "content": f"AGMSG sender: {sender}\nMessage:\n{body}",
+    }
 
 
 def call_openai_compatible(base_url: str, model: str, messages: list[dict], temperature: float, max_tokens: int) -> str:
@@ -130,15 +140,16 @@ def main() -> int:
             history = []
             response = "この会話の直近文脈をリセットしました。"
         else:
+            incoming = incoming_user_message(sender, body)
             messages = [
                 {"role": "system", "content": system_prompt(team, args.agent, persona)},
                 *history,
+                incoming,
             ]
-            messages.append({"role": "user", "content": body})
             response = call_openai_compatible(args.base_url, args.model, messages, args.temperature, args.max_tokens)
             history.extend(
                 [
-                    {"role": "user", "content": body},
+                    incoming,
                     {"role": "assistant", "content": response},
                 ]
             )

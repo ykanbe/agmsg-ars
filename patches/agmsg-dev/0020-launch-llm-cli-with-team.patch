@@ -1,16 +1,64 @@
+diff --git a/app/src-tauri/src/agmsg.rs b/app/src-tauri/src/agmsg.rs
+--- a/app/src-tauri/src/agmsg.rs
++++ b/app/src-tauri/src/agmsg.rs
+@@ -240,6 +240,9 @@ pub struct AgentType {
+     /// Prefix for the agmsg actas boot command (manifest `cmd_prefix=`).
+     /// Most CLIs use "/", while Codex uses "$".
+     pub cmd_prefix: String,
++    /// Pass `--team <team> --agent <member>` when launching this CLI.
++    /// Used by AGMSG-aware interactive wrappers that do not parse actas prompts.
++    pub team_agent_args: bool,
+     /// Extra CLI argv tokens for this type from agmsg's spawn-options file
+     /// (see scripts/lib/spawn-options.sh), e.g. ["--permission-mode",
+     /// "acceptEdits"]. Spliced before the actas boot prompt, same relative
+@@ -348,6 +351,7 @@ pub fn agmsg_spawnable_types() -> Result<Vec<AgentType>, String> {
+                 .filter(|s| !s.is_empty())
+                 .unwrap_or_else(|| "/".to_string());
++            let team_agent_args = manifest_get(&conf, "team_agent_args").as_deref() == Some("yes");
+             let options = spawn_options_tokens(&name);
+-            types.push(AgentType { name, cli, cmd_prefix, options });
++            types.push(AgentType { name, cli, cmd_prefix, team_agent_args, options });
+         }
+     }
 diff --git a/app/src/App.tsx b/app/src/App.tsx
 --- a/app/src/App.tsx
 +++ b/app/src/App.tsx
-@@ -542,13 +542,19 @@ export default function App() {
+@@ -132,4 +132,10 @@ const PANE_DRAG_MIME = "application/x-agmsg-pane";
+ // A spawnable agent type discovered from agmsg's type registry.
+-export type AgentType = { name: string; cli: string; cmd_prefix: string; options: string[] };
++export type AgentType = {
++  name: string;
++  cli: string;
++  cmd_prefix: string;
++  team_agent_args: boolean;
++  options: string[];
++};
+-
++
+ export default function App() {
+@@ -563,5 +569,6 @@ export default function App() {
+       const types = await invoke<AgentType[]>("agmsg_spawnable_types").catch(() => spawnTypes);
+       const freshCliFor = new Map(types.map((t) => [t.name, t.cli]));
+       const freshCmdPrefixFor = new Map(types.map((t) => [t.name, t.cmd_prefix || "/"]));
++      const freshTeamAgentArgsFor = new Map(types.map((t) => [t.name, t.team_agent_args]));
+       const freshOptionsFor = new Map(types.map((t) => [t.name, t.options]));
+       setSpawnTypes(types);
+@@ -576,5 +583,6 @@ export default function App() {
+         type === "codex" && m.name === "Codex"
+           ? ["-m", "gpt-5.6-luna", "-c", 'model_reasoning_effort="max"', ...options]
+           : options;
++      const teamAgentArgs = type ? (freshTeamAgentArgsFor.get(type) ?? false) : false;
+       // Treat app-spawned panes as app-delivered by default. Probing
+       // delivery.sh status can block on per-tool hooks files (notably Codex's
+@@ -591,12 +599,17 @@ export default function App() {
        // instructions from the app-side monitor.
        // Types with no spawnable CLI fall back to a shell.
        const actasPrompt = `${cmdPrefix}${cmdName} actas ${m.name}`;
-+      const paneArgs =
-+        type === "local-llm-cli"
-+          ? [...memberOptions, "--team", team, "--agent", m.name]
-+          : type === "codex"
-+            ? [...memberOptions]
-+            : [...memberOptions, actasPrompt];
++      const paneArgs = teamAgentArgs
++        ? [...memberOptions, "--team", team, "--agent", m.name]
++        : type === "codex"
++          ? [...memberOptions]
++          : [...memberOptions, actasPrompt];
        const pane: Pane = cli
          ? {
              id,
@@ -21,4 +69,3 @@ diff --git a/app/src/App.tsx b/app/src/App.tsx
 +            args: paneArgs,
              cwd: m.project || undefined,
              cmdPrefix,
-             native: monitors,

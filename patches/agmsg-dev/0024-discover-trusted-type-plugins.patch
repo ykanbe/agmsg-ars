@@ -1,0 +1,171 @@
+diff --git a/app/src-tauri/src/agmsg.rs b/app/src-tauri/src/agmsg.rs
+--- a/app/src-tauri/src/agmsg.rs
++++ b/app/src-tauri/src/agmsg.rs
+@@ -5,7 +5,8 @@
+ // powers the default "team room": the whole cross-agent conversation as a
+ // read-only feed, plus the left-hand member list.
+ 
+-use std::path::PathBuf;
++use std::collections::{BTreeMap, HashSet};
++use std::path::{Path, PathBuf};
+ use std::process::Stdio;
+ use std::thread;
+ use std::time::{Duration, Instant};
+@@ -321,21 +322,35 @@ fn spawn_options_tokens(agent_type: &str) -> Vec<String> {
+     tokens
+ }
+ 
+-/// List the agent types the app can spawn: those whose manifest declares
+-/// `spawnable=yes` and a `cli=` binary. Read straight from agmsg's type
+-/// registry (scripts/drivers/types/*/type.conf) so the app never hardcodes the
+-/// list — a newly installed type shows up automatically.
+-#[tauri::command]
+-pub fn agmsg_spawnable_types() -> Result<Vec<AgentType>, String> {
+-    let dir = agmsg_base().join("scripts/drivers/types");
+-    let mut types = Vec::new();
+-    let entries = std::fs::read_dir(&dir).map_err(|e| e.to_string())?;
++fn trusted_type_plugins(root: &Path) -> HashSet<(String, PathBuf)> {
++    let raw = std::fs::read_to_string(root.join("db/trusted-plugins")).unwrap_or_default();
++    raw.lines()
++        .filter_map(|line| {
++            let (driver, path) = line.split_once('\t')?;
++            let name = driver.strip_prefix("types/")?;
++            Some((name.to_string(), PathBuf::from(path)))
++        })
++        .collect()
++}
++
++fn collect_spawnable_types(
++    base: &Path,
++    external: bool,
++    trusted: &HashSet<(String, PathBuf)>,
++    types: &mut BTreeMap<String, AgentType>,
++) -> Result<(), String> {
++    if !base.is_dir() {
++        return Ok(());
++    }
++    let entries = std::fs::read_dir(base).map_err(|e| e.to_string())?;
+     for entry in entries.flatten() {
+-        let conf = entry.path().join("type.conf");
+-        if !conf.is_file() {
++        let driver_name = entry.file_name().to_string_lossy().into_owned();
++        let driver_dir = entry.path();
++        if external && !trusted.contains(&(driver_name, driver_dir.clone())) {
+             continue;
+         }
+-        if manifest_get(&conf, "spawnable").as_deref() != Some("yes") {
++        let conf = driver_dir.join("type.conf");
++        if !conf.is_file() || manifest_get(&conf, "spawnable").as_deref() != Some("yes") {
+             continue;
+         }
+         let cli = match manifest_get(&conf, "cli") {
+@@ -344,19 +359,36 @@ pub fn agmsg_spawnable_types() -> Result<Vec<AgentType>, String> {
+         };
+         let name = manifest_get(&conf, "name")
+             .filter(|s| !s.is_empty())
+-            .or_else(|| entry.file_name().to_str().map(String::from))
+-            .unwrap_or_default();
+-        if !name.is_empty() {
+-            let cmd_prefix = manifest_get(&conf, "cmd_prefix")
+-                .filter(|s| !s.is_empty())
+-                .unwrap_or_else(|| "/".to_string());
+-            let team_agent_args = manifest_get(&conf, "team_agent_args").as_deref() == Some("yes");
+-            let options = spawn_options_tokens(&name);
+-            types.push(AgentType { name, cli, cmd_prefix, team_agent_args, options });
++            .unwrap_or_else(|| entry.file_name().to_string_lossy().into_owned());
++        let cmd_prefix = manifest_get(&conf, "cmd_prefix")
++            .filter(|s| !s.is_empty())
++            .unwrap_or_else(|| "/".to_string());
++        let team_agent_args = manifest_get(&conf, "team_agent_args").as_deref() == Some("yes");
++        let options = spawn_options_tokens(&name);
++        types.insert(
++            name.clone(),
++            AgentType { name, cli, cmd_prefix, team_agent_args, options },
++        );
++    }
++    Ok(())
++}
++
++/// List spawnable built-in and trusted external agent types. Search order
++/// mirrors agmsg's type registry: built-ins, the default plugins directory,
++/// then AGMSG_PLUGIN_DIRS. Later trusted entries override earlier ones.
++#[tauri::command]
++pub fn agmsg_spawnable_types() -> Result<Vec<AgentType>, String> {
++    let root = agmsg_base();
++    let trusted = trusted_type_plugins(&root);
++    let mut types = BTreeMap::new();
++    collect_spawnable_types(&root.join("scripts/drivers/types"), false, &trusted, &mut types)?;
++    collect_spawnable_types(&root.join("plugins/types"), true, &trusted, &mut types)?;
++    if let Ok(extra) = std::env::var("AGMSG_PLUGIN_DIRS") {
++        for base in extra.split(':').filter(|s| !s.is_empty()) {
++            collect_spawnable_types(&PathBuf::from(base).join("types"), true, &trusted, &mut types)?;
+         }
+     }
+-    types.sort_by(|a, b| a.name.cmp(&b.name));
+-    Ok(types)
++    Ok(types.into_values().collect())
+ }
+ 
+ /// Parse each non-empty line of `raw` as JSON into `T`, skipping lines that
+@@ -787,6 +819,9 @@ pub fn start_watcher(app: AppHandle) {
+ 
+ #[cfg(test)]
+ mod tests {
+-    use super::{agmsg_base, msys_to_native, parse_semver, run_script, to_bash_slashes};
++    use super::{
++        agmsg_base, agmsg_spawnable_types, msys_to_native, parse_semver, run_script,
++        to_bash_slashes,
++    };
+     use serial_test::serial;
+     use std::io::Write;
+@@ -948,6 +983,18 @@ mod tests {
+         }
+         let env = EnvGuard::set("AGMSG_APP_BASE", &dir.path().to_string_lossy());
+         FakeBase { _dir: dir, _env: env }
++    }
++
++    fn write_type(dir: &std::path::Path, name: &str, cli: &str, team_agent_args: bool) {
++        std::fs::create_dir_all(dir).unwrap();
++        std::fs::write(
++            dir.join("type.conf"),
++            format!(
++                "name={name}\ncli={cli}\nspawnable=yes\nteam_agent_args={}\n",
++                if team_agent_args { "yes" } else { "no" }
++            ),
++        )
++        .unwrap();
+     }
+ 
+     #[test]
+@@ -967,6 +1014,31 @@ mod tests {
+ 
+     #[test]
+     #[serial]
++    fn spawnable_types_include_only_trusted_plugins_and_honor_overrides() {
++        let _base = fake_base(&[]);
++        let root = agmsg_base();
++        let builtin = root.join("scripts/drivers/types/local-llm-cli");
++        let trusted = root.join("plugins/types/local-llm-cli");
++        let ignored = root.join("plugins/types/ignored-cli");
++        write_type(&builtin, "local-llm-cli", "builtin-cli", false);
++        write_type(&trusted, "local-llm-cli", "plugin-cli", true);
++        write_type(&ignored, "ignored-cli", "ignored", false);
++        std::fs::create_dir_all(root.join("db")).unwrap();
++        std::fs::write(
++            root.join("db/trusted-plugins"),
++            format!("types/local-llm-cli\t{}\n", trusted.display()),
++        )
++        .unwrap();
++
++        let types = agmsg_spawnable_types().unwrap();
++        assert_eq!(types.len(), 1);
++        assert_eq!(types[0].name, "local-llm-cli");
++        assert_eq!(types[0].cli, "plugin-cli");
++        assert!(types[0].team_agent_args);
++    }
++
++    #[test]
++    #[serial]
+     #[cfg(not(target_os = "windows"))]
+     fn run_script_returns_stdout_on_success() {
+         let _base = fake_base(&[("ok.sh", "echo hello-from-fake")]);
