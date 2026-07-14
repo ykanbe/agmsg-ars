@@ -1,16 +1,15 @@
 diff --git a/app/src-tauri/src/agmsg.rs b/app/src-tauri/src/agmsg.rs
 --- a/app/src-tauri/src/agmsg.rs
 +++ b/app/src-tauri/src/agmsg.rs
-@@ -5,7 +5,8 @@
+@@ -5,6 +5,7 @@
  // powers the default "team room": the whole cross-agent conversation as a
  // read-only feed, plus the left-hand member list.
  
 -use std::path::PathBuf;
 +use std::collections::{BTreeMap, HashSet};
 +use std::path::{Path, PathBuf};
- use std::process::Stdio;
  use std::thread;
- use std::time::{Duration, Instant};
+ use std::time::Duration;
 @@ -321,21 +322,35 @@ fn spawn_options_tokens(agent_type: &str) -> Vec<String> {
      tokens
  }

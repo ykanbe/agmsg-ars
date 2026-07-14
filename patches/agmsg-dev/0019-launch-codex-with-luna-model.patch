@@ -1,22 +1,23 @@
 diff --git a/app/src/App.tsx b/app/src/App.tsx
+index 76aa0f3..b8cd76c 100644
 --- a/app/src/App.tsx
 +++ b/app/src/App.tsx
-@@ -523,5 +523,9 @@ export default function App() {
+@@ -562,5 +562,9 @@ export default function App() {
        const cmdPrefix = type ? (freshCmdPrefixFor.get(type) ?? "/") : "/";
        const options = type ? (freshOptionsFor.get(type) ?? []) : [];
 +      const memberOptions =
 +        type === "codex" && m.name === "Codex"
 +          ? ["-m", "gpt-5.6-luna", "-c", 'model_reasoning_effort="max"', ...options]
 +          : options;
-       // Treat app-spawned panes as app-delivered by default. Probing
-       // delivery.sh status can block on per-tool hooks files (notably Codex's
-       // .codex/hooks.json from a GUI sandbox), and pane startup must never
-@@ -550,7 +553,7 @@ export default function App() {
+       // `native` = "this (type, project) actually self-delivers agmsg
+       // messages" — asked from agmsg's own delivery.sh status (mode derived
+       // from the project's real hooks file), NOT a static type.conf flag.
+@@ -591,7 +595,7 @@ export default function App() {
              label: m.name,
              team,
              cmd: launchCmd ?? cli,
--            args: type === "codex" ? [...options] : [...options, actasPrompt],
-+            args: type === "codex" ? [...memberOptions] : [...memberOptions, actasPrompt],
+-            args: [...options, `${cmdPrefix}${cmdName} actas ${m.name}`],
++            args: [...memberOptions, `${cmdPrefix}${cmdName} actas ${m.name}`],
              cwd: m.project || undefined,
              cmdPrefix,
              native: monitors,

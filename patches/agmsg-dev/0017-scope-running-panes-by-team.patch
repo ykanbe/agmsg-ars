@@ -1,16 +1,16 @@
+diff --git a/app/src/App.tsx b/app/src/App.tsx
+index 79a9040..76aa0f3 100644
 --- a/app/src/App.tsx
 +++ b/app/src/App.tsx
-@@ -56,6 +56,9 @@
+@@ -52,6 +52,7 @@ type Message = {
  type Pane = {
    id: string;
    label: string;
-+  /** Team this live agent pane belongs to. Agent names are only unique within
-+   * a team; several teams can all have a member named "codex". */
 +  team: string;
    cmd: string;
    args: string[];
    cwd?: string;
-@@ -491,7 +494,9 @@
+@@ -436,7 +437,9 @@ export default function App() {
        setMessages((prev) => [...prev, e.payload]);
        // Only inject into NON-native panes; a native (actas-booted) agent runs
        // its own agmsg monitor and would otherwise receive the message twice.
@@ -21,7 +21,7 @@
        if (pane) {
          // Inject a kickoff notice, not the raw message body verbatim. The
          // real agmsg Monitor (watch.sh) never types a message's contents
-@@ -597,7 +602,7 @@
+@@ -537,7 +540,7 @@ export default function App() {
      async (m: Member, targetWindowId?: string) => {
        // Don't spawn a second pane for a member that's already running — just
        // focus its window (one live agent per identity).
@@ -30,13 +30,13 @@
        if (existing) {
          const w = windowsRef.current.find((win) => leaves(win.root).includes(existing.id));
          if (w) setActive(w.id);
-@@ -634,13 +639,14 @@
+@@ -583,13 +586,14 @@ export default function App() {
          ? {
              id,
              label: m.name,
 +            team,
              cmd: launchCmd ?? cli,
-             args: type === "codex" ? [...options, `/agmsg actas ${m.name}`] : [...options, actasPrompt],
+             args: [...options, `${cmdPrefix}${cmdName} actas ${m.name}`],
              cwd: m.project || undefined,
              cmdPrefix,
              native: monitors,
@@ -46,7 +46,7 @@
        setPanes((prev) => [...prev, pane]);
        if (targetWindowId) {
          setWindows((prev) =>
-@@ -905,7 +911,7 @@
+@@ -843,7 +847,7 @@ export default function App() {
  
    const onLeave = useCallback(
      async (name: string) => {
@@ -55,7 +55,7 @@
        if (pane) {
          await invoke("pty_kill", { id: pane.id });
          setPanes((prev) => prev.filter((p) => p.id !== pane.id));
-@@ -1311,14 +1317,14 @@
+@@ -1220,14 +1224,14 @@ export default function App() {
                        className="member"
                        onClick={() => spawnMember(m)}
                        title={
@@ -72,7 +72,7 @@
                        </span>
                        <span className="member-types">
                          {m.types.join(", ") || t("sidebar.member.noTypes")}
-@@ -1869,7 +1875,7 @@
+@@ -1724,7 +1728,7 @@ export default function App() {
            // One live agent per identity — same rule spawnMember/the running-dot
            // indicator already enforce. A running member can't be spawned again,
            // so don't offer a "Spawn to…" that would silently just focus it.

@@ -1,21 +1,22 @@
 diff --git a/app/src/App.tsx b/app/src/App.tsx
 --- a/app/src/App.tsx
 +++ b/app/src/App.tsx
-@@ -524,6 +524,8 @@
+@@ -603,6 +603,9 @@ export default function App() {
  
        const type = m.types.find((t) => freshCliFor.has(t));
        const cli = type ? freshCliFor.get(type)! : undefined;
 +      const launchCmd =
-+        type === "codex" ? "/Applications/ChatGPT.app/Contents/Resources/codex" : cli;
++        type === "codex" && cli === "codex"
++          ? "/Applications/ChatGPT.app/Contents/Resources/codex" : cli;
        const cmdPrefix = type ? (freshCmdPrefixFor.get(type) ?? "/") : "/";
        const options = type ? (freshOptionsFor.get(type) ?? []) : [];
-       // Treat app-spawned panes as app-delivered by default. Probing
-@@ -542,7 +544,7 @@
+       // `native` = "this (type, project) actually self-delivers agmsg
+@@ -635,7 +638,7 @@ export default function App() {
          ? {
              id,
              label: m.name,
 -            cmd: cli,
 +            cmd: launchCmd ?? cli,
-             args: type === "codex" ? options : [...options, actasPrompt],
+             args: [...options, `${cmdPrefix}${cmdName} actas ${m.name}`],
              cwd: m.project || undefined,
-             initialInput: type === "codex" ? `${actasPrompt}\r` : undefined,
+             cmdPrefix,
