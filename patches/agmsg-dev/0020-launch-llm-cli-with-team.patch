@@ -23,7 +23,7 @@ index 1ef2b59..84466b0 100644
      }
      types.sort_by(|a, b| a.name.cmp(&b.name));
 diff --git a/app/src/App.tsx b/app/src/App.tsx
-index b8cd76c..ec9d2c3 100644
+index 76aa0f3..ec9d2c3 100644
 --- a/app/src/App.tsx
 +++ b/app/src/App.tsx
 @@ -57,6 +57,7 @@ type Pane = {
@@ -72,29 +72,29 @@ index b8cd76c..ec9d2c3 100644
 +
        const type = m.types.find((t) => freshCliFor.has(t));
        const cli = type ? freshCliFor.get(type)! : undefined;
-@@ -563,6 +573,7 @@ export default function App() {
-         type === "codex" && m.name === "Codex"
-           ? ["-m", "gpt-5.6-luna", "-c", 'model_reasoning_effort="max"', ...options]
-           : options;
+@@ -564,6 +574,7 @@ export default function App() {
+       const options = type ? (freshOptionsFor.get(type) ?? []) : [];
 +      const teamAgentArgs = type ? (freshTeamAgentArgsFor.get(type) ?? false) : false;
        // `native` = "this (type, project) actually self-delivers agmsg
        // messages" — asked from agmsg's own delivery.sh status (mode derived
        // from the project's real hooks file), NOT a static type.conf flag.
-@@ -586,15 +597,20 @@ export default function App() {
+       // A static flag can't see per-project setup or advanced opt-in paths
+       // (e.g. codex's app-server bridge "monitor" mode is disabled by
+@@ -582,15 +593,20 @@ export default function App() {
        // order spawn.sh splices them in — so the agent comes up as the real
        // member (can send as itself, and self-delivers if its type monitors).
        // Types with no spawnable CLI fall back to a shell.
 +      const actasPrompt = `${cmdPrefix}${cmdName} actas ${m.name}`;
 +      const paneArgs = teamAgentArgs
-+        ? [...memberOptions, "--team", team, "--agent", m.name]
-+        : [...memberOptions, actasPrompt];
++        ? [...options, "--team", team, "--agent", m.name]
++        : [...options, actasPrompt];
        const pane: Pane = cli
          ? {
              id,
              label: m.name,
              team,
              cmd: launchCmd ?? cli,
--            args: [...memberOptions, `${cmdPrefix}${cmdName} actas ${m.name}`],
+-            args: [...options, `${cmdPrefix}${cmdName} actas ${m.name}`],
 +            args: paneArgs,
              cwd: m.project || undefined,
              cmdPrefix,

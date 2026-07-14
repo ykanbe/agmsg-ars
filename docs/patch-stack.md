@@ -31,8 +31,6 @@ app-v0.1.5
   - 公式baseとローカルパッチ情報をdevビルドに埋め込み、表示できるようにします。
 - `0017-scope-running-panes-by-team.patch`
   - 起動中paneをメンバー名だけでなくチーム名込みで識別します。
-- `0019-launch-codex-with-luna-model.patch`
-  - AGMSGの単一の `Codex` memberを `gpt-5.6-luna / max` で起動します。
 - `0020-launch-llm-cli-with-team.patch`
   - type manifestで `team_agent_args=yes` を宣言したCLIへ、対象チーム名と
     エージェント名を引数で渡します。これにより、ローカルLLMの対話CLI paneが
@@ -68,6 +66,7 @@ app-v0.1.5
 - `0013-do-not-inject-codex-actas-on-startup.patch`
 - `0016-match-official-codex-spawn-command.patch`
 - `0018-start-codex-pane-without-actas.patch`
+- `0019-launch-codex-with-luna-model.patch`
 - `0019-launch-codex-sol-with-sol-model.patch`
 
 配送経路を変更していた旧パッチは、公式 `app-v0.1.5` の
