@@ -49,6 +49,10 @@ app-v0.2.0
   - 公式コアのtype registryと同じ優先順で、組み込みtype、`plugins/types`、
     `AGMSG_PLUGIN_DIRS` を列挙します。外部typeは `trusted-plugins` に登録された
     パスだけを起動候補にし、後順位の信頼済みプラグインによる上書きを認めます。
+- `0025-color-running-agents-in-team-room.patch`
+  - チームルームをメインで見る人向けに、メンバー選択チェックボックスを
+    維持したまま、起動中のエージェント名を公式の状態色で表示します。
+    他のタブの状態ドットは変更しません。
 
 ## 適用対象から外した旧パッチ
 
