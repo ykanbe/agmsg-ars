@@ -28,7 +28,7 @@ index bf9f3ff..1ef2b59 100644
 @@ -613,8 +619,8 @@ pub fn agmsg_send(team: String, from: String, to: String, body: String) -> Resul
      run_script("send.sh", &[&team, &from, &to, &body]).map(|_| ())
  }
- 
+
 -/// The installed agmsg slash-command name (basename of the skill dir). Used to
 -/// build the `/<cmd> actas <name>` boot prompt, exactly as spawn.sh derives it,
 +/// The installed agmsg command name (basename of the skill dir). Used with each
@@ -37,10 +37,10 @@ index bf9f3ff..1ef2b59 100644
  #[tauri::command]
  pub fn agmsg_command_name() -> String {
 diff --git a/app/src/App.tsx b/app/src/App.tsx
-index 8e2a9eb..efba75b 100644
+index dbe45c9..edcadaa 100644
 --- a/app/src/App.tsx
 +++ b/app/src/App.tsx
-@@ -59,6 +59,7 @@ type Pane = {
+@@ -65,6 +65,7 @@ type Pane = {
    cmd: string;
    args: string[];
    cwd?: string;
@@ -48,16 +48,16 @@ index 8e2a9eb..efba75b 100644
    /** True only when this pane's type self-delivers agmsg messages (manifest
     *  monitor=yes) — the app must NOT also inject there (double-delivery).
     *  False for actas-booted types with no monitor of their own (codex,
-@@ -131,7 +132,7 @@ const LAST_TEAM_KEY = "agmsg-app-last-team";
+@@ -144,7 +145,7 @@ const TIMEZONE_KEY = "agmsg-app-timezone";
  // pane-cell's drop zone.
  const PANE_DRAG_MIME = "application/x-agmsg-pane";
  // A spawnable agent type discovered from agmsg's type registry.
 -export type AgentType = { name: string; cli: string; options: string[] };
 +export type AgentType = { name: string; cli: string; cmd_prefix: string; options: string[] };
- 
+
  export default function App() {
    const { t } = useTranslation();
-@@ -508,7 +509,7 @@ export default function App() {
+@@ -622,7 +623,7 @@ export default function App() {
          // territory since it can no longer contain newlines or run long.
          const flat = e.payload.body.replace(/\s+/g, " ").trim();
          const preview = flat.length > 80 ? `${flat.slice(0, 80)}…` : flat;
@@ -66,21 +66,21 @@ index 8e2a9eb..efba75b 100644
          void invoke("pty_inject", { id: pane.id, text: kickoff });
        }
      });
-@@ -598,11 +599,13 @@ export default function App() {
+@@ -730,11 +731,13 @@ export default function App() {
        // away instead of needing an app restart.
        const types = await invoke<AgentType[]>("agmsg_spawnable_types").catch(() => spawnTypes);
        const freshCliFor = new Map(types.map((t) => [t.name, t.cli]));
 +      const freshCmdPrefixFor = new Map(types.map((t) => [t.name, t.cmd_prefix || "/"]));
        const freshOptionsFor = new Map(types.map((t) => [t.name, t.options]));
        setSpawnTypes(types);
- 
+
        const type = m.types.find((t) => freshCliFor.has(t));
        const cli = type ? freshCliFor.get(type)! : undefined;
 +      const cmdPrefix = type ? (freshCmdPrefixFor.get(type) ?? "/") : "/";
        const options = type ? (freshOptionsFor.get(type) ?? []) : [];
        // `native` = "this (type, project) actually self-delivers agmsg
        // messages" — asked from agmsg's own delivery.sh status (mode derived
-@@ -623,7 +626,7 @@ export default function App() {
+@@ -755,7 +758,7 @@ export default function App() {
        }
        const id = `${m.name}-${seq.current++}`;
        // Mirror agmsg spawn.sh: launch the CLI with any per-type spawn-options
@@ -89,7 +89,7 @@ index 8e2a9eb..efba75b 100644
        // order spawn.sh splices them in — so the agent comes up as the real
        // member (can send as itself, and self-delivers if its type monitors).
        // Types with no spawnable CLI fall back to a shell.
-@@ -632,8 +635,9 @@ export default function App() {
+@@ -764,8 +767,9 @@ export default function App() {
              id,
              label: m.name,
              cmd: cli,

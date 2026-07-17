@@ -68,6 +68,33 @@ python3 examples/agmsg_llm/interactive_cli.py \
 The interactive client keeps context only in the running process. Closing the
 pane ends that conversation. Each turn includes its actual AGMSG sender in the
 model input, so one shared pane can distinguish human and agent participants.
+If the model cannot handle a request, it can return
+`AGMSG_DELEGATE Codex: <具体的な依頼>`. The client forwards that request in the
+same team with the original sender and message, then replies to the original
+sender that it was forwarded. Use `--delegate-agent <name>` or
+`LLM_DELEGATE_AGENT` to select another delegate; the default is `Codex`. A
+marker received from the delegate itself is answered locally without forwarding
+again, preventing a delegation loop.
+
+The client also applies a fail-closed input route before calling the local LLM:
+
+- ordinary conversation, inline translation/summarization, and bounded code
+  drafts stay in the interactive local LLM
+- non-X URLs, local machine/file/command operations, and explicitly difficult
+  technical judgments are forwarded to the Codex delegate
+- X.com, Twitter, and `t.co` URLs are sent to the Grok retrieval agent; the client keeps
+  an in-process correlation record, receives Grok's retrieval-only result, and
+  asks the local LLM to answer the original sender
+
+The URL gate permits only a narrow set of explicit URL-string formatting
+requests to stay local. Mixed X and non-X URLs go to Codex. Grok requests are
+limited to post text, quoted-post text, and related URLs. Use `--x-agent <name>`
+or `LLM_X_AGENT`; the default is `Grok`. Grok replies use a request id when
+available. A reply without an id is accepted only when exactly one request is
+pending in that team; ambiguous results stop instead of being sent to the wrong
+requester. Pending X retrievals expire after 300 seconds by default and are not
+retried automatically, preventing a delayed result from being attached to a new
+request. Override this with `--x-reply-timeout` or `LLM_X_REPLY_TIMEOUT`.
 
 To let the patched desktop app launch this client, create a trusted AGMSG type
 plugin under `~/.agents/skills/agmsg/plugins/types/<type-name>/`. Its
@@ -95,6 +122,9 @@ repository.
 - `AGMSG_TEAM`: explicit team for `ask_llm.py` or `api_bridge.py`
 - `LLM_AGENT`, `LLM_MODEL`, `LLM_BASE_URL`: bridge/client defaults
 - `LLM_PERSONA`: optional Markdown persona file
+- `LLM_DELEGATE_AGENT`: delegate target for `AGMSG_DELEGATE`, default `Codex`
+- `LLM_X_AGENT`: X.com/Twitter retrieval target, default `Grok`
+- `LLM_X_REPLY_TIMEOUT`: X retrieval correlation lifetime in seconds, default `300`
 - `LLM_BRIDGE_STATE_DIR`: cursor state directory for `api_bridge.py`
 - `LLM_BRIDGE_HEARTBEAT`: heartbeat file written by `api_bridge.py`
 - `LLM_BACKEND_HEALTH_URL`: optional model-server health URL checked in approval mode

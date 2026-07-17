@@ -1,8 +1,8 @@
 diff --git a/app/src-tauri/src/lib.rs b/app/src-tauri/src/lib.rs
-index b9bb208..ea98015 100644
+index 04b7921..4bae4f7 100644
 --- a/app/src-tauri/src/lib.rs
 +++ b/app/src-tauri/src/lib.rs
-@@ -284,13 +284,15 @@ const ZOOM_IN_ID: &str = "zoom_in";
+@@ -346,13 +346,15 @@ const ZOOM_IN_ID: &str = "zoom_in";
  const ZOOM_OUT_ID: &str = "zoom_out";
  const ZOOM_RESET_ID: &str = "zoom_reset";
  const CHECK_UPDATES_ID: &str = "check_updates";
@@ -10,7 +10,7 @@ index b9bb208..ea98015 100644
  const PANE_LAYOUT_VERTICAL_ID: &str = "pane_layout_vertical";
  const PANE_LAYOUT_HORIZONTAL_ID: &str = "pane_layout_horizontal";
  const PANE_LAYOUT_TILE_ID: &str = "pane_layout_tile";
- 
+
  /// Check the updater endpoint and, if a newer build is available, confirm
 -/// with the user before downloading, installing, and restarting. When
 -/// `user_initiated` is true (menu click) we also report "up to date" /
@@ -20,7 +20,7 @@ index b9bb208..ea98015 100644
  /// errors; a silent startup check stays quiet unless there's an update.
  async fn check_for_updates(app: &AppHandle, user_initiated: bool) {
      use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
-@@ -315,6 +317,15 @@ async fn check_for_updates(app: &AppHandle, user_initiated: bool) {
+@@ -377,6 +379,15 @@ async fn check_for_updates(app: &AppHandle, user_initiated: bool) {
      match updater.check().await {
          Ok(Some(update)) => {
              let version = update.version.clone();
@@ -37,10 +37,10 @@ index b9bb208..ea98015 100644
                  .dialog()
                  .message(d("updateAvailableBody", &[("name", "agmsg"), ("version", &version)]))
 diff --git a/app/src/i18n/locales/en.json b/app/src/i18n/locales/en.json
-index 9305bee..4812664 100644
+index 00c581a..390aef7 100644
 --- a/app/src/i18n/locales/en.json
 +++ b/app/src/i18n/locales/en.json
-@@ -190,6 +190,7 @@
+@@ -215,6 +215,7 @@
    "nativeDialog": {
      "updateCheckFailed": "Update check failed: {{error}}",
      "updateAvailableBody": "{{name}} {{version}} is available. Install and restart now?",
@@ -49,10 +49,10 @@ index 9305bee..4812664 100644
      "installAndRestart": "Install & Restart",
      "later": "Later",
 diff --git a/app/src/i18n/locales/ja.json b/app/src/i18n/locales/ja.json
-index 607efee..8334388 100644
+index 587e63f..57a9c6f 100644
 --- a/app/src/i18n/locales/ja.json
 +++ b/app/src/i18n/locales/ja.json
-@@ -190,6 +190,7 @@
+@@ -215,6 +215,7 @@
    "nativeDialog": {
      "updateCheckFailed": "アップデートの確認に失敗しました: {{error}}",
      "updateAvailableBody": "{{name}} {{version}} が利用可能です。インストールして再起動しますか？",

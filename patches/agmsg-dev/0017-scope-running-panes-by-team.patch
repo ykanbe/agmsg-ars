@@ -1,8 +1,8 @@
 diff --git a/app/src/App.tsx b/app/src/App.tsx
-index 79a9040..76aa0f3 100644
+index f05b544..de160ad 100644
 --- a/app/src/App.tsx
 +++ b/app/src/App.tsx
-@@ -52,6 +52,7 @@ type Message = {
+@@ -58,6 +58,7 @@ type Message = {
  type Pane = {
    id: string;
    label: string;
@@ -10,7 +10,7 @@ index 79a9040..76aa0f3 100644
    cmd: string;
    args: string[];
    cwd?: string;
-@@ -436,7 +437,9 @@ export default function App() {
+@@ -508,7 +509,9 @@ export default function App() {
        setMessages((prev) => [...prev, e.payload]);
        // Only inject into NON-native panes; a native (actas-booted) agent runs
        // its own agmsg monitor and would otherwise receive the message twice.
@@ -21,7 +21,7 @@ index 79a9040..76aa0f3 100644
        if (pane) {
          // Inject a kickoff notice, not the raw message body verbatim. The
          // real agmsg Monitor (watch.sh) never types a message's contents
-@@ -537,7 +540,7 @@ export default function App() {
+@@ -627,7 +630,7 @@ export default function App() {
      async (m: Member, targetWindowId?: string) => {
        // Don't spawn a second pane for a member that's already running — just
        // focus its window (one live agent per identity).
@@ -30,13 +30,13 @@ index 79a9040..76aa0f3 100644
        if (existing) {
          const w = windowsRef.current.find((win) => leaves(win.root).includes(existing.id));
          if (w) setActive(w.id);
-@@ -583,13 +586,14 @@ export default function App() {
+@@ -678,13 +681,14 @@ export default function App() {
          ? {
              id,
              label: m.name,
 +            team,
              cmd: launchCmd ?? cli,
-             args: [...options, `${cmdPrefix}${cmdName} actas ${m.name}`],
+             args: [...launchArgsPrefix, ...options, `${cmdPrefix}${cmdName} actas ${m.name}`],
              cwd: m.project || undefined,
              cmdPrefix,
              native: monitors,
@@ -46,8 +46,8 @@ index 79a9040..76aa0f3 100644
        setPanes((prev) => [...prev, pane]);
        if (targetWindowId) {
          setWindows((prev) =>
-@@ -843,7 +847,7 @@ export default function App() {
- 
+@@ -950,7 +954,7 @@ export default function App() {
+
    const onLeave = useCallback(
      async (name: string) => {
 -      const pane = panesRef.current.find((p) => p.label === name);
@@ -55,24 +55,15 @@ index 79a9040..76aa0f3 100644
        if (pane) {
          await invoke("pty_kill", { id: pane.id });
          setPanes((prev) => prev.filter((p) => p.id !== pane.id));
-@@ -1220,14 +1224,14 @@ export default function App() {
-                       className="member"
-                       onClick={() => spawnMember(m)}
-                       title={
--                        panes.some((p) => p.label === m.name)
-+                        panes.some((p) => p.team === team && p.label === m.name)
-                           ? t("sidebar.member.titleRunning")
-                           : t("sidebar.member.titleSpawn")
-                       }
-                     >
-                       <span className="member-name">
-                         {m.name}
--                        {panes.some((p) => p.label === m.name) && <span className="running-dot" />}
-+                        {panes.some((p) => p.team === team && p.label === m.name) && <span className="running-dot" />}
-                       </span>
-                       <span className="member-types">
-                         {m.types.join(", ") || t("sidebar.member.noTypes")}
-@@ -1724,7 +1728,7 @@ export default function App() {
+@@ -1344,6 +1348,7 @@ export default function App() {
+                 {others.map((m) => {
+                   const pane = panes.find(
+                     (candidate) =>
++                      candidate.team === team &&
+                       candidate.label === m.name &&
+                       windows.some(
+                         (window) =>
+@@ -1938,7 +1943,7 @@ export default function App() {
            // One live agent per identity — same rule spawnMember/the running-dot
            // indicator already enforce. A running member can't be spawned again,
            // so don't offer a "Spawn to…" that would silently just focus it.
