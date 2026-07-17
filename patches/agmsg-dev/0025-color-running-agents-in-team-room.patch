@@ -1,0 +1,36 @@
+diff --git a/app/src/App.css b/app/src/App.css
+index 9155c68..edbd90f 100644
+--- a/app/src/App.css
++++ b/app/src/App.css
+@@ -768,6 +768,10 @@ body.resizing-row {
+ .member-name {
+   font-weight: 600;
+ }
++.member-name-status.status-blocked { color: var(--danger); }
++.member-name-status.status-working { color: #e0af68; }
++.member-name-status.status-idle,
++.member-name-status.status-unknown { color: var(--green); }
+ .agent-status-dot {
+   display: inline-block;
+   width: 7px;
+diff --git a/app/src/App.tsx b/app/src/App.tsx
+index d2e2b0c..1c8962c 100644
+--- a/app/src/App.tsx
++++ b/app/src/App.tsx
+@@ -1416,7 +1416,15 @@ export default function App() {
+                             : t("sidebar.member.titleSpawn")
+                         }
+                       >
+-                        <span className="member-name">{m.name}</span>
++                        <span
++                          className={
++                            active === "room" && status
++                              ? `member-name member-name-status status-${status}`
++                              : "member-name"
++                          }
++                        >
++                          {m.name}
++                        </span>
+                         <span className="member-types">
+                           {m.types.join(", ") || t("sidebar.member.noTypes")}
+                         </span>
