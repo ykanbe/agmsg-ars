@@ -1,0 +1,898 @@
+--- a/app/src/App.tsx
++++ b/app/src/App.tsx
+@@ -4,11 +4,7 @@
+ import { listen } from "@tauri-apps/api/event";
+ import { open as openDialog } from "@tauri-apps/plugin-dialog";
+ import {
+-  Maximize2,
+-  Minimize2,
+-  Minus,
+   PanelLeftClose,
+-  RectangleHorizontal,
+   Settings,
+   Users,
+ } from "lucide-react";
+@@ -170,7 +166,6 @@
+   const [cmdName, setCmdName] = useState("agmsg");
+   const [spawnTypes, setSpawnTypes] = useState<AgentType[]>([]);
+   const [sidebarWidth, setSidebarWidth] = useState(200);
+-  const [chatHeight, setChatHeight] = useState(160);
+   // Collapses the team sidebar to an icon-only rail so panes get more width.
+   // Session-only (no persistence needed) — spawning/messaging a member isn't
+   // offered from the collapsed rail; expand to get back to the full list.
+@@ -180,21 +175,6 @@
+   // instead of a direct icon action at rail width. Settings is a direct
+   // button in the rail (same as the full view's gear icon), no popup needed.
+   const [railTeamMenu, setRailTeamMenu] = useState(false);
+-  // Toggled from the native "View > Show Team Room" menu item — when off,
+-  // the room tab itself disappears from the tab bar (not just its
+-  // content), matching Show User Chat's own toggle just below it.
+-  const [showTeamRoom, setShowTeamRoom] = useState(true);
+-  // Toggled from the native "View > Show User Chat" menu item.
+-  const [showUserChat, setShowUserChat] = useState(true);
+-  // The app-user chat pane's 3 states (session-only, like sidebarCollapsed):
+-  // "normal" (today's layout), "minimized" (collapses the history away,
+-  // leaving just the composer row — the team room becomes the only log,
+-  // fixing the double-log fatigue real users reported), "maximized" (the
+-  // chat pane fills the whole content area, hiding the team room/agent
+-  // panes — a focused 1:1 view). Windows-style min/max header buttons
+-  // toggle these; clicking maximize while minimized (or vice versa) jumps
+-  // straight to the other state, same as real OS window controls.
+-  const [chatPaneState, setChatPaneState] = useState<"normal" | "minimized" | "maximized">("normal");
+   // Team-room member filter: names the user has UN-checked (default: all shown).
+   const [deselected, setDeselected] = useState<Set<string>>(new Set());
+   // Team-room history paging: whether an older page exists, and whether one
+@@ -216,11 +196,6 @@
+   const [windowMenu, setWindowMenu] = useState<{ windowId: string; x: number; y: number } | null>(
+     null,
+   );
+-  // Right-click context menu over the Team Room tab itself: { x, y }. Just
+-  // one action (Hide Team Room) — no per-window data needed, unlike windowMenu.
+-  const [roomMenu, setRoomMenu] = useState<{ x: number; y: number } | null>(null);
+-  // Same idea, over the app-user chat pane's own header: { x, y }.
+-  const [chatMenu, setChatMenu] = useState<{ x: number; y: number } | null>(null);
+
+   // Closes every context/dropdown menu (koit: opening a second one while a
+   // first is still open used to stack both — right-clicking a different
+@@ -233,8 +208,6 @@
+     setMemberMenu(null);
+     setPaneMenu(null);
+     setWindowMenu(null);
+-    setRoomMenu(null);
+-    setChatMenu(null);
+     setRailTeamMenu(false);
+   }, []);
+   // The two menus opened by clicking a trigger button (rather than
+@@ -368,35 +341,8 @@
+   // The agmsg slash-command name, for the `/<cmd> actas <name>` boot prompt.
+   useEffect(() => {
+     invoke<string>("agmsg_command_name").then(setCmdName).catch(() => {});
+-  }, []);
+-
+-  // Rust holds the only durable copy of these two flags (see view_visibility
+-  // in lib.rs) — seed our state from there on mount rather than guessing
+-  // `true`. Without this, a webview remount that doesn't restart the Rust
+-  // process (Vite HMR during `tauri dev`, or any future webview reload)
+-  // would reset these back to `true` while the native menu checkbox and
+-  // Rust's own state kept whatever was last set, silently disagreeing.
+-  useEffect(() => {
+-    invoke<{ team_room: boolean; user_chat: boolean }>("view_visibility")
+-      .then((v) => {
+-        setShowTeamRoom(v.team_room);
+-        setShowUserChat(v.user_chat);
+-      })
+-      .catch(() => {});
+   }, []);
+
+-  // Native "View > Show Team Room" menu checkbox toggles the room tab itself.
+-  useEffect(() => {
+-    const p = listen<boolean>("toggle-team-room", (e) => setShowTeamRoom(e.payload));
+-    return () => void p.then((u) => u());
+-  }, []);
+-
+-  // Native "View > Show User Chat" menu checkbox toggles the chat/composer panel.
+-  useEffect(() => {
+-    const p = listen<boolean>("toggle-user-chat", (e) => setShowUserChat(e.payload));
+-    return () => void p.then((u) => u());
+-  }, []);
+-
+   // Spawnable agent types (for the Add-agent type picker). spawnMember
+   // re-fetches this itself right before spawning — see there for why.
+   useEffect(() => {
+@@ -569,8 +515,11 @@
+     if (el) el.scrollTop = el.scrollHeight;
+   }, [messages, active]);
+   useEffect(() => {
+-    chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight });
+-  }, [myThread.length]);
++    if (active !== "chat") return;
++    requestAnimationFrame(() => {
++      chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight });
++    });
++  }, [myThread.length, active]);
+
+   // Remove a pane from whichever window holds it. If that empties the window,
+   // drop the window too and fall back to the team room if it was active.
+@@ -777,7 +726,7 @@
+   // tab is currently active; a no-op on the team room, which has no panes.
+   useEffect(() => {
+     const p = listen<PaneLayout>("set-pane-layout", (e) => {
+-      if (active !== "room") setWindowLayout(active, e.payload);
++      if (active !== "room" && active !== "chat") setWindowLayout(active, e.payload);
+     });
+     return () => void p.then((u) => u());
+   }, [active, setWindowLayout]);
+@@ -798,17 +747,6 @@
+   // here or offered as spawn/move targets.
+   const teamWindows = useMemo(() => windows.filter((w) => w.team === team), [windows, team]);
+
+-  // If Show Team Room gets switched off while it's the active tab, land on
+-  // whichever pane tab exists instead — the room tab itself is about to
+-  // disappear from the bar, so "active" can't keep pointing at it. If there
+-  // are no pane tabs either, there's genuinely nothing to switch to yet;
+-  // the stage below shows a hint in that case rather than a blank area.
+-  useEffect(() => {
+-    if (!showTeamRoom && active === "room" && teamWindows.length > 0) {
+-      setActive(teamWindows[0].id);
+-    }
+-  }, [showTeamRoom, active, teamWindows]);
+-
+   // Every window's leaf rects, computed once per render rather than per-pane
+   // (computeRects walks the whole tree) — looked up by window id, then pane
+   // id, in the panes.map below and again for each window's dividers.
+@@ -947,39 +885,10 @@
+       document.body.classList.add("resizing-col");
+     },
+     [sidebarWidth],
+-  );
+-
+-  const startChatDrag = useCallback(
+-    (e: React.MouseEvent) => {
+-      e.preventDefault();
+-      const startY = e.clientY;
+-      const startH = chatHeight;
+-      const onMove = (ev: MouseEvent) =>
+-        setChatHeight(Math.max(72, Math.min(560, startH + startY - ev.clientY)));
+-      const onUp = () => {
+-        document.removeEventListener("mousemove", onMove);
+-        document.removeEventListener("mouseup", onUp);
+-        document.body.classList.remove("resizing-row");
+-      };
+-      document.addEventListener("mousemove", onMove);
+-      document.addEventListener("mouseup", onUp);
+-      document.body.classList.add("resizing-row");
+-    },
+-    [chatHeight],
+   );
+
+-  // Chat pane min/max: clicking one while the OTHER state is active jumps
+-  // straight there (minimize while maximized goes directly to minimized,
+-  // not back through normal first) — same as real OS window controls.
+-  const toggleChatMinimized = useCallback(() => {
+-    setChatPaneState((s) => (s === "minimized" ? "normal" : "minimized"));
+-  }, []);
+-  const toggleChatMaximized = useCallback(() => {
+-    setChatPaneState((s) => (s === "maximized" ? "normal" : "maximized"));
+-  }, []);
+-
+   // Draggable pane dividers (issue #317). Same document-level drag-tracking
+-  // pattern as startSidebarDrag/startChatDrag above, but the ratio being
++  // pattern as startSidebarDrag above, but the ratio being
+   // dragged belongs to one specific split node rather than a single flat
+   // width/height. For a "single" divider that's just divider.path directly
+   // — updateRatioAtPath's own doc explains why reusing this path across the
+@@ -1356,22 +1265,17 @@
+         {!sidebarCollapsed && <div className="divider-v" onMouseDown={startSidebarDrag} />}
+
+         <main className="main">
+-          <nav className="tabs" data-tauri-drag-region hidden={showUserChat && chatPaneState === "maximized"}>
+-            {showTeamRoom && (
+-              <span
+-                className={active === "room" ? "tab active" : "tab"}
+-                onContextMenu={(e) => {
+-                  e.preventDefault();
+-                  e.stopPropagation();
+-                  closeAllMenus();
+-                  setRoomMenu({ x: e.clientX, y: e.clientY });
+-                }}
+-              >
+-                <button className="tab-label" onClick={() => setActive("room")}>
+-                  {t("tabs.roomLabel")}
+-                </button>
+-              </span>
+-            )}
++          <nav className="tabs" data-tauri-drag-region>
++            <span className={active === "room" ? "tab active" : "tab"}>
++              <button className="tab-label" onClick={() => setActive("room")}>
++                {t("tabs.roomLabel")}
++              </button>
++            </span>
++            <span className={active === "chat" ? "tab active" : "tab"}>
++              <button className="tab-label" onClick={() => setActive("chat")}>
++                {t("tabs.chatLabel")}
++              </button>
++            </span>
+             {teamWindows.map((w) => (
+               <span
+                 key={w.id}
+@@ -1463,10 +1367,10 @@
+             />
+           </nav>
+
+-          <section className="stage" hidden={showUserChat && chatPaneState === "maximized"}>
++          <section className="stage">
+             <div
+               className="room"
+-              hidden={active !== "room" || !showTeamRoom}
++              hidden={active !== "room"}
+               ref={feedRef}
+               onScroll={(e) => {
+                 if (e.currentTarget.scrollTop < 60) void loadOlderMessages();
+@@ -1491,12 +1395,39 @@
+               {messages.length === 0 && <div className="empty">{t("room.emptyState")}</div>}
+             </div>
+
+-            {/* Show Team Room is off AND no pane tabs exist yet — the stage
+-                would otherwise be entirely blank (no room, nothing else to
+-                switch "active" to). */}
+-            {!showTeamRoom && teamWindows.length === 0 && (
+-              <div className="stage-empty-hint">{t("stage.emptyHint")}</div>
+-            )}
++            <div
++              className="appuser-chat"
++              ref={chatRef}
++              hidden={active !== "chat"}
++              onClick={() => composerInputRef.current?.focus()}
++            >
++              {myThread.map((m) => (
++                <div className={m.from === appUser ? "chat-line out" : "chat-line in"} key={m.id}>
++                  <div className="chat-meta">
++                    <span className="chat-peer">
++                      {m.from === appUser
++                        ? t("chat.peer.to", { to: m.to })
++                        : t("chat.peer.from", { from: m.from })}
++                    </span>
++                    <span className="chat-time">{formatMessageTime(m.created_at)}</span>
++                  </div>
++                  <div className="chat-bubble">
++                    <span className="chat-body">{m.body}</span>
++                  </div>
++                </div>
++              ))}
++              {appUser && myThread.length === 0 && (
++                <div className="empty">{t("chat.emptyState.withUser", { appUser })}</div>
++              )}
++              {!appUser && team && (
++                <div className="empty">
++                  {t("chat.emptyState.noUser")}
++                  <button className="link" onClick={() => setModal({ kind: "appuser" })}>
++                    {t("chat.emptyState.addOne")}
++                  </button>
++                </div>
++              )}
++            </div>
+
+             {/* Every pane is a permanent, flat child of .stage — its window only
+                 decides WHERE it's positioned (computeRects, from its split
+@@ -1653,6 +1584,7 @@
+             })}
+
+             {active !== "room" &&
++              active !== "chat" &&
+               activeDividers.map((d) => (
+                 <div
+                   key={
+@@ -1672,83 +1604,7 @@
+               ))}
+           </section>
+
+-          {showUserChat && chatPaneState === "normal" && (
+-            <div className="divider-h" onMouseDown={startChatDrag} />
+-          )}
+-
+-          {/* App-user chat: the human's own send/receive thread + composer.
+-              Hidden via View > Show User Chat (native menu checkbox).
+-              min/max header buttons toggle chatPaneState between normal,
+-              minimized (history collapsed away — just the composer row,
+-              fixing the "my own messages show twice" fatigue real users
+-              reported once the room already shows everything), and
+-              maximized (fills the whole content area, hiding the team
+-              room/agent panes — a focused 1:1 view). Clicking the history
+-              jumps focus to the composer input below — the history itself
+-              has nothing to focus (nothing to type into), so without this
+-              the border-on-focus feedback here was invisible in normal use. */}
+-          <div
+-            className={`appuser-chat-wrap state-${chatPaneState}`}
+-            style={chatPaneState === "normal" ? { height: chatHeight } : undefined}
+-            hidden={!showUserChat}
+-          >
+-            <div
+-              className="appuser-chat-header"
+-              data-tauri-drag-region
+-              onContextMenu={(e) => {
+-                e.preventDefault();
+-                e.stopPropagation();
+-                closeAllMenus();
+-                setChatMenu({ x: e.clientX, y: e.clientY });
+-              }}
+-            >
+-              <span className="appuser-chat-title">{t("chat.title")}</span>
+-              <div className="appuser-chat-controls">
+-                <button
+-                  className="chat-ctrl-btn"
+-                  title={chatPaneState === "minimized" ? t("chat.restore") : t("chat.minimize")}
+-                  onClick={toggleChatMinimized}
+-                >
+-                  {chatPaneState === "minimized" ? <RectangleHorizontal size={14} /> : <Minus size={14} />}
+-                </button>
+-                <button
+-                  className="chat-ctrl-btn"
+-                  title={chatPaneState === "maximized" ? t("chat.restore") : t("chat.maximize")}
+-                  onClick={toggleChatMaximized}
+-                >
+-                  {chatPaneState === "maximized" ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+-                </button>
+-              </div>
+-            </div>
+-
+-            {chatPaneState !== "minimized" && (
+-              <div className="appuser-chat" ref={chatRef} onClick={() => composerInputRef.current?.focus()}>
+-                {myThread.map((m) => (
+-                  <div className={m.from === appUser ? "chat-line out" : "chat-line in"} key={m.id}>
+-                    <span className="chat-time">{formatMessageTime(m.created_at)}</span>
+-                    <span className="chat-peer">
+-                      {m.from === appUser
+-                        ? t("chat.peer.to", { to: m.to })
+-                        : t("chat.peer.from", { from: m.from })}
+-                    </span>
+-                    <span className="chat-body">{m.body}</span>
+-                  </div>
+-                ))}
+-                {appUser && myThread.length === 0 && (
+-                  <div className="empty">{t("chat.emptyState.withUser", { appUser })}</div>
+-                )}
+-                {!appUser && team && (
+-                  <div className="empty">
+-                    {t("chat.emptyState.noUser")}
+-                    <button className="link" onClick={() => setModal({ kind: "appuser" })}>
+-                      {t("chat.emptyState.addOne")}
+-                    </button>
+-                  </div>
+-                )}
+-              </div>
+-            )}
+-
+-            <footer className="composer">
++          <footer className="composer">
+               {appUser ? (
+                 <>
+                   <span className="as">
+@@ -1791,8 +1647,7 @@
+               ) : (
+                 <span className="as">{t("composer.noAppUser")}</span>
+               )}
+-            </footer>
+-          </div>
++          </footer>
+         </main>
+       </div>
+
+@@ -2016,40 +1871,6 @@
+           );
+         })()}
+
+-      {roomMenu && (
+-        <div className="ctx-menu" style={{ left: roomMenu.x, top: roomMenu.y }} onClick={(e) => e.stopPropagation()}>
+-          <button
+-            onClick={() => {
+-              setShowTeamRoom(false);
+-              setRoomMenu(null);
+-              // Keeps the native View > Show Team Room checkbox in sync —
+-              // it's not the surface that changed this, so Rust's own copy
+-              // of the toggle state would otherwise go stale.
+-              void invoke("set_team_room_visible", { visible: false });
+-            }}
+-          >
+-            {t("ctxMenu.room.hide")}
+-          </button>
+-        </div>
+-      )}
+-
+-      {chatMenu && (
+-        <div className="ctx-menu" style={{ left: chatMenu.x, top: chatMenu.y }} onClick={(e) => e.stopPropagation()}>
+-          <button
+-            onClick={() => {
+-              setShowUserChat(false);
+-              setChatMenu(null);
+-              // Keeps the native View > Show User Chat checkbox in sync —
+-              // it's not the surface that changed this, so Rust's own copy
+-              // of the toggle state would otherwise go stale.
+-              void invoke("set_user_chat_visible", { visible: false });
+-            }}
+-          >
+-            {t("ctxMenu.chat.hide")}
+-          </button>
+-        </div>
+-      )}
+-
+       {windowMenu &&
+         (() => {
+           const layouts: PaneLayout[] = ["vertical", "horizontal", "tile"];
+--- a/app/src/App.css
++++ b/app/src/App.css
+@@ -423,8 +423,7 @@
+
+ /* Draggable dividers: a generous grab area, but only a hairline is drawn
+    until hover (then the full strip lights up in the accent color). */
+-.divider-v,
+-.divider-h {
++.divider-v {
+   position: relative;
+   background: transparent;
+   flex: 0 0 3px;
+@@ -432,12 +431,7 @@
+ .divider-v {
+   cursor: col-resize;
+ }
+-.divider-h {
+-  height: 3px;
+-  cursor: row-resize;
+-}
+-.divider-v::before,
+-.divider-h::before {
++.divider-v::before {
+   content: "";
+   position: absolute;
+   background: var(--border);
+@@ -449,22 +443,9 @@
+   width: 1px;
+   transform: translateX(-50%);
+ }
+-.divider-h::before {
+-  left: 0;
+-  right: 0;
+-  top: 50%;
+-  height: 1px;
+-  transform: translateY(-50%);
+-}
+ .divider-v:hover::before {
+   left: 0;
+   width: 100%;
+-  transform: none;
+-  background: var(--accent);
+-}
+-.divider-h:hover::before {
+-  top: 0;
+-  height: 100%;
+   transform: none;
+   background: var(--accent);
+ }
+@@ -785,13 +766,6 @@
+   border-bottom: 1px solid var(--border);
+   overflow-x: auto;
+ }
+-/* `hidden` alone loses to our `display: flex` above (same issue as
+-   .appuser-chat[hidden] below) — spelled out for the chat pane's maximize
+-   state, which hides the tab strip so the chat pane can fill the content
+-   area. */
+-.tabs[hidden] {
+-  display: none;
+-}
+ .tabs-drag-spacer {
+   flex: 1;
+   min-width: 24px;
+@@ -912,19 +886,6 @@
+   padding: 20px;
+ }
+
+-/* Show Team Room off + no pane tabs yet — the stage would otherwise be
+-   entirely blank. */
+-.stage-empty-hint {
+-  position: absolute;
+-  inset: 0;
+-  display: flex;
+-  align-items: center;
+-  justify-content: center;
+-  color: var(--muted);
+-  padding: 20px;
+-  text-align: center;
+-}
+-
+ .term-pane {
+   width: 100%;
+   height: 100%;
+@@ -1035,9 +996,9 @@
+
+ /* Draggable dividers BETWEEN panes within one tab (issue #317) — absolutely
+    positioned within .stage (left/top/width/height % set inline from
+-   collectDividers, see App.tsx), unlike .divider-v/.divider-h above (which
+-   are flex-layout siblings for the sidebar/chat). Same grab-width (3px,
+-   matching .divider-v/.divider-h's own `flex: 0 0 3px`) and
++   collectDividers, see App.tsx), unlike .divider-v above (which is a
++   flex-layout sibling for the sidebar). Same grab-width (3px,
++   matching .divider-v's own `flex: 0 0 3px`) and
+    hairline-until-hover language as those (aggie review — this one was
+    originally wider and stood out as inconsistent). z-index above .pane-cell
+    so the grab area isn't occluded by a neighboring pane's own box. */
+@@ -1210,92 +1171,58 @@
+   border-top: none;
+ }
+
+-/* App-user chat: header (min/max controls) + history + composer, all one
+-   flex column so the 3 states (issue #317 backlog — koit) just resize
+-   which pieces are visible/how much space they get, no separate hidden
+-   toggles per piece anymore (see the JSX — only the wrap itself is hidden
+-   via View > Show User Chat). */
+-.appuser-chat-wrap {
++/* App-user chat (you ↔ others), shown as the Chat Room tab. */
++.appuser-chat {
++  position: absolute;
++  inset: 0;
++  overflow-y: auto;
++  padding: 14px 18px;
++  background: var(--bg);
++  cursor: text;
+   display: flex;
+   flex-direction: column;
+-  flex-shrink: 0;
++  gap: 10px;
+ }
+-/* `hidden` alone loses to our `display: flex` above (same issue as .tabs
+-   above) — spelled out for View > Show User Chat. */
+-.appuser-chat-wrap[hidden] {
++.appuser-chat[hidden] {
+   display: none;
+ }
+-/* Maximized: fill whatever space .main has left (the tab strip and stage
+-   are hidden in this state — see their own [hidden] handling). Minimized:
+-   shrink to just the header + composer's own content height, not the
+-   chatHeight the normal state's inline style sets. */
+-.appuser-chat-wrap.state-maximized {
+-  flex: 1;
+-  min-height: 0;
+-}
+-.appuser-chat-wrap.state-minimized {
+-  flex-shrink: 0;
+-}
+-.appuser-chat-header {
++.chat-line {
+   display: flex;
+-  align-items: center;
+-  justify-content: space-between;
+-  flex-shrink: 0;
+-  padding: 4px 8px 4px 12px;
+-  font-size: 11px;
+-  text-transform: uppercase;
+-  letter-spacing: 0.6px;
+-  color: var(--muted);
+-  background: var(--panel);
+-  border-top: 1px solid var(--border);
+-  border-bottom: 1px solid var(--border);
+-}
+-.appuser-chat-controls {
+-  display: flex;
+-  gap: 2px;
+-}
+-.chat-ctrl-btn {
+-  display: flex;
+-  align-items: center;
+-  justify-content: center;
+-  background: none;
+-  border: none;
+-  color: var(--muted);
+-  cursor: pointer;
+-  padding: 4px 6px;
+-  border-radius: 4px;
+-}
+-.chat-ctrl-btn:hover {
+-  background: var(--panel-2);
+-  color: var(--fg);
+-}
+-.appuser-chat {
+-  flex: 1;
+-  min-height: 0;
+-  overflow-y: auto;
+-  padding: 8px 12px;
+-  background: var(--panel-2);
+-  cursor: text;
+-  display: flex;
+   flex-direction: column;
+-  gap: 4px;
+-}
+-.chat-line {
+-  display: flex;
+-  gap: 8px;
+-  align-items: baseline;
+-  max-width: 80%;
+-  padding: 4px 8px;
+-  border-radius: 8px;
++  gap: 3px;
++  max-width: min(76%, 720px);
+   word-break: break-word;
+ }
+ .chat-line.out {
+   align-self: flex-end;
+-  background: var(--outgoing);
++  align-items: flex-end;
+ }
+ .chat-line.in {
+   align-self: flex-start;
++  align-items: flex-start;
++}
++.chat-meta {
++  display: flex;
++  align-items: baseline;
++  gap: 7px;
++  padding: 0 4px;
++}
++.chat-bubble {
++  padding: 8px 11px;
++  border: 1px solid var(--border);
++  border-radius: 14px;
++  line-height: 1.5;
++  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
++}
++.chat-line.out .chat-bubble {
++  color: var(--fg);
++  background: var(--outgoing);
++  border-bottom-right-radius: 5px;
++}
++.chat-line.in .chat-bubble {
++  color: var(--fg);
+   background: var(--incoming);
++  border-bottom-left-radius: 5px;
+ }
+ .chat-time {
+   color: var(--muted);
+@@ -1313,6 +1240,7 @@
+   color: var(--green);
+ }
+ .chat-body {
++  display: block;
+   white-space: pre-wrap;
+ }
+
+--- a/app/src/i18n/locales/en.json
++++ b/app/src/i18n/locales/en.json
+@@ -48,6 +48,7 @@
+   },
+   "tabs": {
+     "roomLabel": "# team room",
++    "chatLabel": "# chat room",
+     "close": "×"
+   },
+   "room": {
+--- a/app/src/i18n/locales/ja.json
++++ b/app/src/i18n/locales/ja.json
+@@ -45,6 +45,7 @@
+   },
+   "tabs": {
+     "roomLabel": "# チームルーム",
++    "chatLabel": "# チャットルーム",
+     "close": "×"
+   },
+   "room": {
+--- a/app/src-tauri/src/lib.rs
++++ b/app/src-tauri/src/lib.rs
+@@ -3,10 +3,8 @@
+ mod pty;
+
+ use pty::PtyManager;
+-use serde::Serialize;
+-use std::sync::atomic::{AtomicBool, Ordering};
+ use std::sync::{Mutex, OnceLock};
+-use tauri::menu::{AboutMetadataBuilder, CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
++use tauri::menu::{AboutMetadataBuilder, Menu, MenuItem, PredefinedMenuItem, Submenu};
+ use tauri::{AppHandle, Emitter, Manager, Wry};
+
+ /// The PATH import_login_shell_path() resolved, kept around so every spawn
+@@ -30,28 +28,6 @@
+ /// Rust-owned window chrome. Defaults to "en" until that first call arrives.
+ struct MenuLanguage(Mutex<String>);
+
+-/// Explicit toggle state for View > Show User Chat. We don't rely on
+-/// CheckMenuItem flipping its own checked state on click (that's an
+-/// implementation detail of the underlying menu library and isn't guaranteed),
+-/// so this is the single source of truth: the handler flips it, pushes it to
+-/// the checkbox via set_checked, and emits it to the frontend.
+-struct UserChatVisible(AtomicBool);
+-
+-/// Same idea as UserChatVisible, for View > Show Team Room — when off, the
+-/// frontend removes the Team Room tab entirely (not just its content), and
+-/// falls back to whichever pane tab is active, or an empty-state hint if
+-/// none exist yet.
+-struct TeamRoomVisible(AtomicBool);
+-
+-/// Handles to the View menu's two checkboxes — see make_menu's comment on
+-/// why these can't just be looked up via app.menu().get(id) each time.
+-/// Rebuilt (and these Mutexes overwritten) on every set_menu_language call,
+-/// since that constructs an entirely new Menu with fresh CheckMenuItems.
+-struct ViewMenuCheckboxes {
+-    team_room: Mutex<CheckMenuItem<Wry>>,
+-    user_chat: Mutex<CheckMenuItem<Wry>>,
+-}
+-
+ /// Current webview zoom factor (1.0 = 100%). Tauri's WebviewWindow can set
+ /// the zoom but not read it back, so this is the source of truth the Zoom
+ /// In/Out/Actual Size menu items adjust and apply via set_zoom.
+@@ -205,22 +181,11 @@
+ /// menu's Copy/Paste are also needed for the embedded terminals. All labels
+ /// come from menu_i18n::t so the whole native menu tracks the app's
+ /// language selector rather than the OS locale.
+-fn make_menu(app: &AppHandle, lang: &str) -> tauri::Result<(Menu<Wry>, CheckMenuItem<Wry>, CheckMenuItem<Wry>)> {
++fn make_menu(app: &AppHandle, lang: &str) -> tauri::Result<Menu<Wry>> {
+     let name = "agmsg";
+     let m = |key: &str| menu_i18n::t(lang, "nativeMenu", key, &[]);
+     let m_name = |key: &str| menu_i18n::t(lang, "nativeMenu", key, &[("name", name)]);
+     let icon = tauri::image::Image::from_bytes(include_bytes!("../icons/icon.png")).ok();
+-    // This runs again on every language switch (set_menu_language rebuilds
+-    // the whole menu — Tauri has no per-item relabel API), which used to
+-    // hardcode both checkboxes back to checked regardless of their actual
+-    // current state (koit bug report: the checkmark went stale after
+-    // hiding Team Room, even though the real show/hide behavior was
+-    // correct). try_state — not state, which panics — since the very
+-    // FIRST call happens from the initial .menu(...) builder hook, before
+-    // .manage() has registered either of these yet; true is the correct
+-    // default for that one call only.
+-    let team_room_checked = app.try_state::<TeamRoomVisible>().map(|s| s.0.load(Ordering::Relaxed)).unwrap_or(true);
+-    let user_chat_checked = app.try_state::<UserChatVisible>().map(|s| s.0.load(Ordering::Relaxed)).unwrap_or(true);
+     // A single combined string (rather than muda's separate version/
+     // short_version fields, which map to different, platform-divergent
+     // About-panel slots on macOS vs. a parenthetical suffix on Windows) so
+@@ -276,10 +241,6 @@
+             &PredefinedMenuItem::select_all(app, Some(&m("selectAll")))?,
+         ],
+     )?;
+-    // "Show Team Room" / "Show User Chat" toggle the team-room tab and the
+-    // app-user send/receive panel (chat + composer), respectively, in the
+-    // frontend. The frontend owns the actual show/hide state; these
+-    // checkboxes just reflect it and emit a toggle event when clicked.
+     // "Pane Layout" duplicates the right-click-tab context menu's Layout
+     // submenu (frontend App.tsx) here too — that one works fine but users
+     // reported not discovering it, being tucked inside a right-click. The
+@@ -298,26 +259,11 @@
+             &MenuItem::with_id(app, PANE_LAYOUT_TILE_ID, m("paneLayoutTile"), true, None::<&str>)?,
+         ],
+     )?;
+-    // Owned locals (not inline in the items array below) so we can hand
+-    // clones back to the caller — Menu::get()/Submenu::get() only search a
+-    // menu's OWN direct children, never nested submenus, so app.menu().
+-    // get(TEAM_ROOM_MENU_ID) can never find an item that lives inside this
+-    // view_menu; every other call site that needs to flip these checkboxes
+-    // programmatically (on_menu_event, set_team_room_visible,
+-    // set_user_chat_visible) holds one of these clones instead of
+-    // re-searching a tree that doesn't contain them at the level searched.
+-    let team_room_item =
+-        CheckMenuItem::with_id(app, TEAM_ROOM_MENU_ID, m("showTeamRoom"), true, team_room_checked, None::<&str>)?;
+-    let user_chat_item =
+-        CheckMenuItem::with_id(app, USER_CHAT_MENU_ID, m("showUserChat"), true, user_chat_checked, None::<&str>)?;
+     let view_menu = Submenu::with_items(
+         app,
+         m("viewMenu"),
+         true,
+         &[
+-            &team_room_item,
+-            &user_chat_item,
+-            &PredefinedMenuItem::separator(app)?,
+             &pane_layout_menu,
+             &PredefinedMenuItem::separator(app)?,
+             &MenuItem::with_id(app, ZOOM_IN_ID, m("zoomIn"), true, Some("CmdOrCtrl+="))?,
+@@ -336,11 +282,9 @@
+         ],
+     )?;
+     let menu = Menu::with_items(app, &[&app_menu, &edit_menu, &view_menu, &window_menu])?;
+-    Ok((menu, team_room_item, user_chat_item))
++    Ok(menu)
+ }
+
+-const TEAM_ROOM_MENU_ID: &str = "toggle_team_room";
+-const USER_CHAT_MENU_ID: &str = "toggle_user_chat";
+ const ZOOM_IN_ID: &str = "zoom_in";
+ const ZOOM_OUT_ID: &str = "zoom_out";
+ const ZOOM_RESET_ID: &str = "zoom_reset";
+@@ -437,59 +381,11 @@
+ #[tauri::command]
+ fn set_menu_language(app: AppHandle, lang: String) -> Result<(), String> {
+     *app.state::<MenuLanguage>().0.lock().unwrap() = lang.clone();
+-    let (menu, team_room_item, user_chat_item) = make_menu(&app, &lang).map_err(|e| e.to_string())?;
++    let menu = make_menu(&app, &lang).map_err(|e| e.to_string())?;
+     app.set_menu(menu).map_err(|e| e.to_string())?;
+-    let checkboxes = app.state::<ViewMenuCheckboxes>();
+-    *checkboxes.team_room.lock().unwrap() = team_room_item;
+-    *checkboxes.user_chat.lock().unwrap() = user_chat_item;
+     Ok(())
+-}
+-
+-/// Called by the frontend when it changes showTeamRoom from a surface OTHER
+-/// than the View > Show Team Room checkbox itself (the tab's own right-click
+-/// "Hide Team Room" — see App.tsx) — keeps the native checkbox and
+-/// TeamRoomVisible in sync with a change the menu didn't originate, the
+-/// same way clicking the checkbox itself does (see TEAM_ROOM_MENU_ID's
+-/// on_menu_event handler).
+-#[tauri::command]
+-fn set_team_room_visible(app: AppHandle, visible: bool) {
+-    app.state::<TeamRoomVisible>().0.store(visible, Ordering::Relaxed);
+-    let _ = app.state::<ViewMenuCheckboxes>().team_room.lock().unwrap().set_checked(visible);
+ }
+
+-/// Same idea as set_team_room_visible, for the chat pane header's own
+-/// right-click "Hide User Chat" (see App.tsx).
+-#[tauri::command]
+-fn set_user_chat_visible(app: AppHandle, visible: bool) {
+-    app.state::<UserChatVisible>().0.store(visible, Ordering::Relaxed);
+-    let _ = app.state::<ViewMenuCheckboxes>().user_chat.lock().unwrap().set_checked(visible);
+-}
+-
+-/// Rust holds the only durable copy of these two flags — the frontend's
+-/// own showTeamRoom/showUserChat state defaulted to `true` unconditionally
+-/// and only ever updated reactively (via the toggle-team-room/toggle-user-
+-/// chat events below), with no way to ask what the real value currently
+-/// is. That's invisible on a cold start (both sides agree on `true`), but
+-/// during `tauri dev` Vite hot-reloads the webview independently of this
+-/// Rust process — the frontend remounts and its state resets to `true`
+-/// while Rust (and the menu checkbox) still hold whatever was last set,
+-/// so the menu checkbox and the actual visible pane silently disagree.
+-/// The frontend now calls this once on mount to seed its state from here
+-/// instead of guessing.
+-#[derive(Serialize)]
+-pub struct ViewVisibility {
+-    team_room: bool,
+-    user_chat: bool,
+-}
+-
+-#[tauri::command]
+-fn view_visibility(app: AppHandle) -> ViewVisibility {
+-    ViewVisibility {
+-        team_room: app.state::<TeamRoomVisible>().0.load(Ordering::Relaxed),
+-        user_chat: app.state::<UserChatVisible>().0.load(Ordering::Relaxed),
+-    }
+-}
+-
+ #[cfg_attr(mobile, tauri::mobile_entry_point)]
+ pub fn run() {
+     tauri::Builder::default()
+@@ -513,32 +409,13 @@
+         // i18next resolves it, so set_menu_language rebuilds this shortly
+         // after startup with the real choice.
+         .menu(|app| {
+-            let (menu, team_room_item, user_chat_item) = make_menu(app, "en")?;
+-            app.manage(ViewMenuCheckboxes {
+-                team_room: Mutex::new(team_room_item),
+-                user_chat: Mutex::new(user_chat_item),
+-            });
+-            Ok(menu)
++            make_menu(app, "en")
+         })
+-        .manage(TeamRoomVisible(AtomicBool::new(true)))
+-        .manage(UserChatVisible(AtomicBool::new(true)))
+         .manage(ZoomLevel(Mutex::new(1.0)))
+         .manage(MenuLanguage(Mutex::new("en".to_string())))
+         .on_menu_event(|app, event| {
+             let id = event.id().as_ref();
+-            if id == TEAM_ROOM_MENU_ID {
+-                let state = app.state::<TeamRoomVisible>();
+-                let next = !state.0.load(Ordering::Relaxed);
+-                state.0.store(next, Ordering::Relaxed);
+-                let _ = app.state::<ViewMenuCheckboxes>().team_room.lock().unwrap().set_checked(next);
+-                let _ = app.emit("toggle-team-room", next);
+-            } else if id == USER_CHAT_MENU_ID {
+-                let state = app.state::<UserChatVisible>();
+-                let next = !state.0.load(Ordering::Relaxed);
+-                state.0.store(next, Ordering::Relaxed);
+-                let _ = app.state::<ViewMenuCheckboxes>().user_chat.lock().unwrap().set_checked(next);
+-                let _ = app.emit("toggle-user-chat", next);
+-            } else if id == ZOOM_IN_ID || id == ZOOM_OUT_ID || id == ZOOM_RESET_ID {
++            if id == ZOOM_IN_ID || id == ZOOM_OUT_ID || id == ZOOM_RESET_ID {
+                 let state = app.state::<ZoomLevel>();
+                 let mut zoom = state.0.lock().unwrap();
+                 *zoom = match id {
+@@ -617,9 +494,6 @@
+             agmsg::agmsg_command_name,
+             agmsg::agmsg_spawnable_types,
+             set_menu_language,
+-            set_team_room_visible,
+-            set_user_chat_visible,
+-            view_visibility,
+         ])
+         .run(tauri::generate_context!())
+         .expect("error while running tauri application");

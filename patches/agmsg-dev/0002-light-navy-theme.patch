@@ -1,21 +1,27 @@
 diff --git a/app/src/App.css b/app/src/App.css
-index 794f474..6386a64 100644
+index ba6af2a..cfd5270 100644
 --- a/app/src/App.css
 +++ b/app/src/App.css
-@@ -1,12 +1,18 @@
+@@ -1,17 +1,23 @@
  :root {
 -  --bg: #0b0e14;
 -  --panel: #11151f;
 -  --panel-2: #161b27;
 -  --border: #232a3a;
--  --fg: #c5c8c6;
--  --muted: #6b7280;
--  --accent: #7aa2f7;
--  --green: #9ece6a;
 +  --bg: #f5f7fa;
 +  --panel: #ffffff;
 +  --panel-2: #eef2f6;
 +  --border: #d7dde6;
+   /* One step brighter than --border, specifically for the pane frame
+      (koit: --border alone was too faint to read as a visible box at
+      rest). Its own variable, not a --border change, so the other 27
+      places --border is used elsewhere in the UI stay as-is. */
+-  --pane-border: #3a4660;
+-  --fg: #c5c8c6;
+-  --muted: #6b7280;
+-  --accent: #7aa2f7;
+-  --green: #9ece6a;
++  --pane-border: #b7c3d4;
 +  --fg: #172033;
 +  --muted: #667085;
 +  --accent: #1f3a5f;
@@ -27,9 +33,9 @@ index 794f474..6386a64 100644
 +  --outgoing: #dbe4f0;
 +  --incoming: #edf1f5;
  }
- 
+
  * {
-@@ -38,15 +44,15 @@ body,
+@@ -43,15 +49,15 @@ body,
    justify-content: space-between;
    gap: 12px;
    padding: 8px 14px 8px 80px;
@@ -50,7 +56,7 @@ index 794f474..6386a64 100644
    border-radius: 4px;
    padding: 2px 8px;
    cursor: pointer;
-@@ -69,15 +75,15 @@ body,
+@@ -74,15 +80,15 @@ body,
    justify-content: space-between;
    gap: 12px;
    padding: 8px 14px 8px 80px;
@@ -71,7 +77,7 @@ index 794f474..6386a64 100644
    border-radius: 4px;
    padding: 2px 8px;
    cursor: pointer;
-@@ -90,15 +96,15 @@ body,
+@@ -95,15 +101,15 @@ body,
    justify-content: space-between;
    gap: 12px;
    padding: 8px 14px 8px 80px;
@@ -92,7 +98,7 @@ index 794f474..6386a64 100644
    border-radius: 4px;
    padding: 2px 8px;
    cursor: pointer;
-@@ -145,7 +151,7 @@ select {
+@@ -150,7 +156,7 @@ select {
    padding: 6px 28px 6px 10px;
    font: inherit;
    cursor: pointer;
@@ -101,7 +107,7 @@ index 794f474..6386a64 100644
    background-repeat: no-repeat;
    background-position: right 10px center;
  }
-@@ -183,7 +189,7 @@ select:focus {
+@@ -177,7 +183,7 @@ select:focus {
    border: 1px solid var(--border);
    border-radius: 6px;
    overflow: hidden;
@@ -110,7 +116,7 @@ index 794f474..6386a64 100644
  }
  .new-menu button {
    background: none;
-@@ -213,7 +219,7 @@ select:focus {
+@@ -207,7 +213,7 @@ select:focus {
    background: var(--panel-2);
    border: 1px solid var(--border);
    border-radius: 8px;
@@ -119,7 +125,7 @@ index 794f474..6386a64 100644
  }
  .ctx-menu button {
    background: none;
-@@ -228,7 +234,7 @@ select:focus {
+@@ -222,7 +228,7 @@ select:focus {
    background: var(--bg);
  }
  .ctx-menu button.danger {
@@ -128,7 +134,7 @@ index 794f474..6386a64 100644
  }
  .ctx-menu button:disabled {
    opacity: 0.4;
-@@ -260,7 +266,7 @@ select:focus {
+@@ -254,7 +260,7 @@ select:focus {
    border: 1px solid var(--border);
    border-radius: 8px;
    overflow: hidden;
@@ -137,7 +143,7 @@ index 794f474..6386a64 100644
  }
  .submenu-trigger:hover .submenu {
    display: flex;
-@@ -288,7 +294,7 @@ select:focus {
+@@ -282,7 +288,7 @@ select:focus {
    position: fixed;
    inset: 0;
    z-index: 50;
@@ -146,7 +152,7 @@ index 794f474..6386a64 100644
    display: flex;
    align-items: center;
    justify-content: center;
-@@ -300,7 +306,7 @@ select:focus {
+@@ -294,7 +300,7 @@ select:focus {
    border: 1px solid var(--border);
    border-radius: 10px;
    padding: 18px;
@@ -155,7 +161,7 @@ index 794f474..6386a64 100644
  }
  .modal-title {
    font-weight: 700;
-@@ -347,7 +353,7 @@ select:focus {
+@@ -341,7 +347,7 @@ select:focus {
    cursor: pointer;
  }
  .modal-err {
@@ -164,7 +170,7 @@ index 794f474..6386a64 100644
    font-size: 12px;
    margin-bottom: 10px;
    white-space: pre-wrap;
-@@ -367,12 +373,12 @@ select:focus {
+@@ -361,12 +367,12 @@ select:focus {
  }
  .modal-actions button.primary {
    background: var(--accent);
@@ -179,7 +185,34 @@ index 794f474..6386a64 100644
  }
  .modal-actions button:disabled {
    opacity: 0.4;
-@@ -724,7 +730,7 @@ body.resizing-row {
+@@ -660,7 +666,7 @@ body.resizing-row {
+   border-radius: 50%;
+   background: var(--muted);
+ }
+-.team-status-dot.status-blocked { background: #f7768e; }
++.team-status-dot.status-blocked { background: var(--danger); }
+ .team-status-dot.status-working { background: #e0af68; }
+ .team-status-dot.status-idle { background: var(--green); }
+ .team-status-dot.status-unknown { background: var(--green); }
+@@ -711,7 +717,7 @@ body.resizing-row {
+ }
+ .section-add-btn:hover {
+   background: var(--accent);
+-  color: #fff;
++  color: var(--on-accent);
+ }
+ .section-add-btn:disabled {
+   opacity: 0.4;
+@@ -789,7 +795,7 @@ body.resizing-row {
+   background: var(--muted);
+   vertical-align: middle;
+ }
+-.agent-status-dot.status-blocked { background: #f7768e; }
++.agent-status-dot.status-blocked { background: var(--danger); }
+ .agent-status-dot.status-working {
+   background: #e0af68;
+   animation: agent-status-pulse 1.2s ease-in-out infinite;
+@@ -821,7 +827,7 @@ body.resizing-row {
    height: 26px;
    border-radius: 50%;
    flex-shrink: 0;
@@ -188,16 +221,16 @@ index 794f474..6386a64 100644
  }
  .settings-btn {
    display: flex;
-@@ -842,7 +848,7 @@ body.resizing-row {
+@@ -939,7 +945,7 @@ body.resizing-row {
  }
  .tab-close:hover {
    opacity: 1;
 -  color: #f7768e;
 +  color: var(--danger);
  }
- 
+
  /* Stage */
-@@ -1002,7 +1008,7 @@ body.resizing-row {
+@@ -1099,7 +1105,7 @@ body.resizing-row {
  }
  .pane-header-label.swap-armed {
    background: var(--accent);
@@ -206,7 +239,7 @@ index 794f474..6386a64 100644
    cursor: grabbing;
  }
  /* Off-screen drag image for pane-header drags — see onDragStart in App.tsx.
-@@ -1014,7 +1020,7 @@ body.resizing-row {
+@@ -1111,7 +1117,7 @@ body.resizing-row {
    left: -9999px;
    padding: 2px 8px;
    font-size: 11px;
@@ -215,7 +248,7 @@ index 794f474..6386a64 100644
    background: var(--accent);
    border-radius: 3px;
    white-space: nowrap;
-@@ -1178,7 +1184,7 @@ body.resizing-row {
+@@ -1282,7 +1288,7 @@ body.resizing-row {
    font-size: 11px;
    white-space: nowrap;
    z-index: 70;
@@ -224,7 +257,7 @@ index 794f474..6386a64 100644
  }
  .monitor-dot:hover .monitor-tip {
    display: block;
-@@ -1193,7 +1199,7 @@ body.resizing-row {
+@@ -1297,7 +1303,7 @@ body.resizing-row {
    line-height: 1;
  }
  .pane-header-close:hover {
@@ -233,7 +266,7 @@ index 794f474..6386a64 100644
  }
  .pane-cell .term-pane {
    flex: 1;
-@@ -1285,11 +1291,11 @@ body.resizing-row {
+@@ -1389,11 +1395,11 @@ body.resizing-row {
  }
  .chat-line.out {
    align-self: flex-end;
@@ -247,7 +280,7 @@ index 794f474..6386a64 100644
  }
  .chat-time {
    color: var(--muted);
-@@ -1354,7 +1360,7 @@ body.resizing-row {
+@@ -1458,7 +1464,7 @@ body.resizing-row {
  }
  .composer button {
    background: var(--accent);

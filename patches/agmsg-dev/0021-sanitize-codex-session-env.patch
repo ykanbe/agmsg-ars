@@ -1,18 +1,20 @@
 diff --git a/app/src-tauri/src/pty.rs b/app/src-tauri/src/pty.rs
+index 3f98d35..47eae63 100644
 --- a/app/src-tauri/src/pty.rs
 +++ b/app/src-tauri/src/pty.rs
-@@ -20,5 +20,6 @@
+@@ -20,6 +20,7 @@
+
  use std::collections::HashMap;
  use std::io::{Read, Write};
 +use std::path::Path;
  use std::sync::{Arc, Mutex};
  use std::thread;
  use std::time::Duration;
-@@ -151,5 +152,19 @@ pub fn pty_spawn(
+@@ -185,6 +186,20 @@ pub fn pty_spawn(
          builder.cwd(dir);
      }
      builder.env("TERM", "xterm-256color");
-+    if is_codex_command(&cmd) {
++    if is_codex_command(&cmd, &args) {
 +        // A GUI launched from Codex can inherit the parent task's control
 +        // variables. They make this child look like the existing Codex task
 +        // (and CODEX_CI can suppress the interactive TUI), so remove them
@@ -28,18 +30,47 @@ diff --git a/app/src-tauri/src/pty.rs b/app/src-tauri/src/pty.rs
 +    }
      // Explicitly set PATH from what import_login_shell_path() resolved at
      // startup (lib.rs) rather than relying on this child implicitly
-@@ -196,5 +210,12 @@ pub fn pty_spawn(
-     manager.sessions.lock().unwrap().insert(id, PtySession { master: pair.master, writer, pid });
+     // inheriting the process's own (mutated) environment — a real
+@@ -243,6 +258,11 @@ pub fn pty_spawn(
      Ok(())
  }
-+
-+fn is_codex_command(cmd: &str) -> bool {
-+    Path::new(cmd)
-+        .file_name()
-+        .and_then(|name| name.to_str())
-+        .is_some_and(|name| name == "codex")
+
++fn is_codex_command(cmd: &str, args: &[String]) -> bool {
++    let name = Path::new(cmd).file_name().and_then(|name| name.to_str());
++    name == Some("codex") || (name == Some("env") && args.iter().any(|arg| arg == "codex"))
 +}
- 
- /// Forward keystrokes/data from xterm.js into the PTY.
++
  #[tauri::command]
- pub fn pty_write(manager: State<'_, PtyManager>, id: String, data: String) -> Result<(), String> {
+ pub fn agent_state(manager: State<'_, PtyManager>, id: String) -> Result<PaneState, String> {
+     let sessions = manager.sessions.lock().unwrap();
+@@ -329,7 +349,7 @@ pub fn pty_inject(manager: State<'_, PtyManager>, id: String, text: String) -> R
+
+ #[cfg(test)]
+ mod tests {
+-    use super::windows_shell_argv;
++    use super::{is_codex_command, windows_shell_argv};
+
+     #[test]
+     fn wraps_the_agent_name_through_cmd_slash_c() {
+@@ -352,6 +372,21 @@ mod tests {
+         assert_eq!(windows_shell_argv("codex", &[]), vec!["/d", "/c", "codex"]);
+     }
+
++    #[test]
++    fn detects_codex_binary_by_path() {
++        assert!(is_codex_command("/opt/codex/bin/codex", &[]));
++        assert!(!is_codex_command("/opt/codex/bin/claude", &[]));
++    }
++
++    #[test]
++    fn detects_env_wrapped_codex() {
++        let args = vec!["CODEX_CI=1".to_string(), "codex".to_string()];
++        assert!(is_codex_command("env", &args));
++
++        let other = vec!["CODEX_CI=1".to_string(), "claude".to_string()];
++        assert!(!is_codex_command("env", &other));
++    }
++
+     // resolve_windows_cwd is behind cfg(windows); this test runs on the
+     // windows-latest app-test CI job (a compile-pass elsewhere isn't validation
+     // — the 0.1.2 lesson). Exercises the #315 phantom-cwd guard end to end.

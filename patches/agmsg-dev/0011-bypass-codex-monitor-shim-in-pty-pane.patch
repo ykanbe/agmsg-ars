@@ -1,22 +1,27 @@
 diff --git a/app/src/App.tsx b/app/src/App.tsx
+index edcadaa..00c0823 100644
 --- a/app/src/App.tsx
 +++ b/app/src/App.tsx
-@@ -603,6 +603,9 @@ export default function App() {
- 
+@@ -738,6 +738,11 @@ export default function App() {
        const type = m.types.find((t) => freshCliFor.has(t));
        const cli = type ? freshCliFor.get(type)! : undefined;
-+      const launchCmd =
-+        type === "codex" && cli === "codex"
-+          ? "/Applications/ChatGPT.app/Contents/Resources/codex" : cli;
        const cmdPrefix = type ? (freshCmdPrefixFor.get(type) ?? "/") : "/";
++      const launchCmd = type === "codex" && cli === "codex" ? "/usr/bin/env" : cli;
++      const launchArgsPrefix =
++        type === "codex" && cli === "codex"
++          ? ["CODEX_MONITOR_SHIM_DISABLE=1", "codex"]
++          : [];
        const options = type ? (freshOptionsFor.get(type) ?? []) : [];
        // `native` = "this (type, project) actually self-delivers agmsg
-@@ -635,7 +638,7 @@ export default function App() {
+       // messages" — asked from agmsg's own delivery.sh status (mode derived
+@@ -766,8 +771,8 @@ export default function App() {
          ? {
              id,
              label: m.name,
 -            cmd: cli,
+-            args: [...options, `${cmdPrefix}${cmdName} actas ${m.name}`],
 +            cmd: launchCmd ?? cli,
-             args: [...options, `${cmdPrefix}${cmdName} actas ${m.name}`],
++            args: [...launchArgsPrefix, ...options, `${cmdPrefix}${cmdName} actas ${m.name}`],
              cwd: m.project || undefined,
              cmdPrefix,
+             native: monitors,

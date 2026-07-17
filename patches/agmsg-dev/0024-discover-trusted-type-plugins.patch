@@ -1,19 +1,21 @@
 diff --git a/app/src-tauri/src/agmsg.rs b/app/src-tauri/src/agmsg.rs
+index b2fa4e5..e9c213d 100644
 --- a/app/src-tauri/src/agmsg.rs
 +++ b/app/src-tauri/src/agmsg.rs
-@@ -5,6 +5,7 @@
+@@ -5,7 +5,8 @@
  // powers the default "team room": the whole cross-agent conversation as a
  // read-only feed, plus the left-hand member list.
- 
+
 -use std::path::PathBuf;
 +use std::collections::{BTreeMap, HashSet};
 +use std::path::{Path, PathBuf};
  use std::thread;
  use std::time::Duration;
-@@ -321,21 +322,35 @@ fn spawn_options_tokens(agent_type: &str) -> Vec<String> {
+
+@@ -319,21 +320,35 @@ fn spawn_options_tokens(agent_type: &str) -> Vec<String> {
      tokens
  }
- 
+
 -/// List the agent types the app can spawn: those whose manifest declares
 -/// `spawnable=yes` and a `cli=` binary. Read straight from agmsg's type
 -/// registry (scripts/drivers/types/*/type.conf) so the app never hardcodes the
@@ -49,7 +51,7 @@ diff --git a/app/src-tauri/src/agmsg.rs b/app/src-tauri/src/agmsg.rs
 -        if !conf.is_file() {
 +        let driver_name = entry.file_name().to_string_lossy().into_owned();
 +        let driver_dir = entry.path();
-+        if external && !trusted.contains(&(driver_name, driver_dir.clone())) {
++        if external && !trusted.contains(&(driver_name.clone(), driver_dir.clone())) {
              continue;
          }
 -        if manifest_get(&conf, "spawnable").as_deref() != Some("yes") {
@@ -58,30 +60,30 @@ diff --git a/app/src-tauri/src/agmsg.rs b/app/src-tauri/src/agmsg.rs
              continue;
          }
          let cli = match manifest_get(&conf, "cli") {
-@@ -344,19 +359,36 @@ pub fn agmsg_spawnable_types() -> Result<Vec<AgentType>, String> {
+@@ -342,15 +357,14 @@ pub fn agmsg_spawnable_types() -> Result<Vec<AgentType>, String> {
          };
          let name = manifest_get(&conf, "name")
              .filter(|s| !s.is_empty())
 -            .or_else(|| entry.file_name().to_str().map(String::from))
 -            .unwrap_or_default();
--        if !name.is_empty() {
--            let cmd_prefix = manifest_get(&conf, "cmd_prefix")
--                .filter(|s| !s.is_empty())
--                .unwrap_or_else(|| "/".to_string());
--            let team_agent_args = manifest_get(&conf, "team_agent_args").as_deref() == Some("yes");
--            let options = spawn_options_tokens(&name);
--            types.push(AgentType { name, cli, cmd_prefix, team_agent_args, options });
-+            .unwrap_or_else(|| entry.file_name().to_string_lossy().into_owned());
-+        let cmd_prefix = manifest_get(&conf, "cmd_prefix")
-+            .filter(|s| !s.is_empty())
-+            .unwrap_or_else(|| "/".to_string());
-+        let team_agent_args = manifest_get(&conf, "team_agent_args").as_deref() == Some("yes");
-+        let options = spawn_options_tokens(&name);
-+        types.insert(
-+            name.clone(),
-+            AgentType { name, cli, cmd_prefix, team_agent_args, options },
-+        );
-+    }
++            .unwrap_or_else(|| driver_name.clone());
+         if !name.is_empty() {
+             let cmd_prefix = manifest_get(&conf, "cmd_prefix")
+                 .filter(|s| !s.is_empty())
+                 .unwrap_or_else(|| "/".to_string());
+             let team_agent_args = manifest_get(&conf, "team_agent_args").as_deref() == Some("yes");
+             let options = spawn_options_tokens(&name);
+-            types.push(AgentType {
++            types.insert(name.clone(), AgentType {
+                 name,
+                 cli,
+                 cmd_prefix,
+@@ -359,8 +373,25 @@ pub fn agmsg_spawnable_types() -> Result<Vec<AgentType>, String> {
+             });
+         }
+     }
+-    types.sort_by(|a, b| a.name.cmp(&b.name));
+-    Ok(types)
 +    Ok(())
 +}
 +
@@ -98,16 +100,14 @@ diff --git a/app/src-tauri/src/agmsg.rs b/app/src-tauri/src/agmsg.rs
 +    if let Ok(extra) = std::env::var("AGMSG_PLUGIN_DIRS") {
 +        for base in extra.split(':').filter(|s| !s.is_empty()) {
 +            collect_spawnable_types(&PathBuf::from(base).join("types"), true, &trusted, &mut types)?;
-         }
-     }
--    types.sort_by(|a, b| a.name.cmp(&b.name));
--    Ok(types)
++        }
++    }
 +    Ok(types.into_values().collect())
  }
- 
+
  /// Parse each non-empty line of `raw` as JSON into `T`, skipping lines that
-@@ -787,6 +819,9 @@ pub fn start_watcher(app: AppHandle) {
- 
+@@ -754,7 +785,10 @@ pub fn start_watcher(app: AppHandle) {
+
  #[cfg(test)]
  mod tests {
 -    use super::{agmsg_base, msys_to_native, parse_semver, run_script, to_bash_slashes};
@@ -117,38 +117,36 @@ diff --git a/app/src-tauri/src/agmsg.rs b/app/src-tauri/src/agmsg.rs
 +    };
      use serial_test::serial;
      use std::io::Write;
-@@ -948,6 +983,18 @@ mod tests {
-         }
-         let env = EnvGuard::set("AGMSG_APP_BASE", &dir.path().to_string_lossy());
+
+@@ -917,6 +951,44 @@ mod tests {
          FakeBase { _dir: dir, _env: env }
-+    }
-+
-+    fn write_type(dir: &std::path::Path, name: &str, cli: &str, team_agent_args: bool) {
+     }
+
++    fn write_type(dir: &std::path::Path, name: &str, cli: &str) {
 +        std::fs::create_dir_all(dir).unwrap();
 +        std::fs::write(
 +            dir.join("type.conf"),
-+            format!(
-+                "name={name}\ncli={cli}\nspawnable=yes\nteam_agent_args={}\n",
-+                if team_agent_args { "yes" } else { "no" }
-+            ),
++            format!("name={name}\ncli={cli}\nspawnable=yes\n"),
 +        )
 +        .unwrap();
-     }
- 
-     #[test]
-@@ -967,6 +1014,31 @@ mod tests {
- 
-     #[test]
-     #[serial]
++    }
++
++    #[test]
++    #[serial]
 +    fn spawnable_types_include_only_trusted_plugins_and_honor_overrides() {
 +        let _base = fake_base(&[]);
 +        let root = agmsg_base();
++        let _plugin_dirs = EnvGuard::set("AGMSG_PLUGIN_DIRS", "");
++        let _spawn_options = EnvGuard::set(
++            "AGMSG_SPAWN_OPTIONS_FILE",
++            &root.join("missing-spawn-options.yaml").to_string_lossy(),
++        );
 +        let builtin = root.join("scripts/drivers/types/local-llm-cli");
 +        let trusted = root.join("plugins/types/local-llm-cli");
 +        let ignored = root.join("plugins/types/ignored-cli");
-+        write_type(&builtin, "local-llm-cli", "builtin-cli", false);
-+        write_type(&trusted, "local-llm-cli", "plugin-cli", true);
-+        write_type(&ignored, "ignored-cli", "ignored", false);
++        write_type(&builtin, "local-llm-cli", "builtin-cli");
++        write_type(&trusted, "local-llm-cli", "plugin-cli");
++        write_type(&ignored, "ignored-cli", "ignored");
 +        std::fs::create_dir_all(root.join("db")).unwrap();
 +        std::fs::write(
 +            root.join("db/trusted-plugins"),
@@ -160,11 +158,8 @@ diff --git a/app/src-tauri/src/agmsg.rs b/app/src-tauri/src/agmsg.rs
 +        assert_eq!(types.len(), 1);
 +        assert_eq!(types[0].name, "local-llm-cli");
 +        assert_eq!(types[0].cli, "plugin-cli");
-+        assert!(types[0].team_agent_args);
 +    }
 +
-+    #[test]
-+    #[serial]
-     #[cfg(not(target_os = "windows"))]
-     fn run_script_returns_stdout_on_success() {
-         let _base = fake_base(&[("ok.sh", "echo hello-from-fake")]);
+     #[test]
+     #[serial]
+     fn agmsg_base_honors_the_env_override() {

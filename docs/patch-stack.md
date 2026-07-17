@@ -3,7 +3,7 @@
 このパッチ列を切り出した時点の主な対象base:
 
 ```text
-app-v0.1.5
+app-v0.2.0
 ```
 
 パッチは `patches/agmsg-dev/` にある `.patch` ファイルを、ファイル名の昇順で
@@ -11,8 +11,6 @@ app-v0.1.5
 
 ## パッチ一覧
 
-- `0001-display-message-times-in-jst.patch`
-  - デスクトップアプリのメッセージ時刻を日本時間で表示します。
 - `0002-light-navy-theme.patch`
   - 暗色テーマを、白・グレー・ネイビー基調の明るいテーマに変えます。
 - `0003-disable-dev-auto-updater.patch`
@@ -21,12 +19,13 @@ app-v0.1.5
   - agent typeごとのAGMSGコマンドprefixを、起動時のactasと受信時のkickoffで
     尊重します。
 - `0011-bypass-codex-monitor-shim-in-pty-pane.patch`
-  - Codex paneだけはPATH上のmonitor shimを通さず、ChatGPT.app同梱CLIを
+  - 組み込みtypeの `cli=codex` を起動するときはmonitor shimを環境変数で
+    無効化します。信頼済みtype pluginが絶対パスを指定する場合は、そのCLIを
     アプリ内PTYで直接起動します。配送は公式のPTY注入経路を使います。
 - `0014-split-team-and-chat-room-tabs.patch`
   - チームルームとチャットルームを固定タブに分け、発言窓を選択中の画面の
-    下に配置します。ユーザーチャットの履歴はチャットルーム内だけに表示し、
-    ペイン下の常時表示・最小化・最大化の追加UIは使いません。
+    下に配置します。ユーザーチャット履歴はチャットルーム内だけに表示し、
+    ターミナルpane下の常設チャット・最小化・最大化UIは使いません。
 - `0015-show-dev-build-provenance.patch`
   - 公式baseとローカルパッチ情報をdevビルドに埋め込み、表示できるようにします。
 - `0017-scope-running-panes-by-team.patch`
@@ -53,14 +52,16 @@ app-v0.1.5
 
 ## 適用対象から外した旧パッチ
 
-公式 `app-v0.1.5` に同等の機能が入ったものと、今回の運用では不要と判断したものは
+公式 `app-v0.2.0` に同等の機能が入ったものと、今回の運用では不要と判断したものは
 適用対象から外し、内容だけ `patches/agmsg-dev/retired/` に保存しています。
 
+- `0001-display-message-times-in-jst.patch`
+  - 0.2.0でOSタイムゾーン自動検出と手動設定が公式実装されました。
 - `0004-keep-composer-independent.patch`
-- `0007-hide-app-user-history-by-default.patch`
-- `0009-japanese-composer-sender-label.patch`
 - `0006-timeout-delivery-mode-status.patch`
+- `0007-hide-app-user-history-by-default.patch`
 - `0008-do-not-probe-delivery-mode-before-spawn.patch`
+- `0009-japanese-composer-sender-label.patch`
 - `0010-inject-codex-actas-after-pty-start.patch`
 - `0012-inject-codex-agmsg-command-on-message.patch`
 - `0013-do-not-inject-codex-actas-on-startup.patch`
@@ -69,10 +70,10 @@ app-v0.1.5
 - `0019-launch-codex-with-luna-model.patch`
 - `0019-launch-codex-sol-with-sol-model.patch`
 
-配送経路を変更していた旧パッチは、公式 `app-v0.1.5` の
+配送経路を変更していた旧パッチは、公式 `app-v0.2.0` の
 `delivery-mode判定 → 非native paneへのPTY注入` に戻すため退役しました。
-CodexだけはPATH上のmonitor shimを避けるため同梱CLIを直接使い、それ以外の
-CLI実体はAGMSGの信頼済みtype manifestから選びます。
+CodexはPATH上のmonitor shimを避け、CLI実体はAGMSGの信頼済みtype manifestを
+優先して選びます。
 
 ## パッチを更新する手順
 

@@ -1,8 +1,11 @@
 diff --git a/app/src/TerminalPane.tsx b/app/src/TerminalPane.tsx
+index 1f5ee41..f4c7ded 100644
 --- a/app/src/TerminalPane.tsx
 +++ b/app/src/TerminalPane.tsx
-@@ -67,2 +67,38 @@
-     const unlisteners: Array<() => void> = [];
+@@ -98,6 +98,45 @@ export function TerminalPane({ id, cmd, args = [], cwd, fontSize = 12, onAgentSt
+     // backgrounded/occluded webview, and agmsg mounts panes while hidden).
+     const writeBatcher = createWriteBatcher({ onFlush: (data) => term.write(data) });
+
 +    const decoder = new TextDecoder();
 +    let queryBuffer = "";
 +    const terminalQueries: Array<{ sequence: string; reply: string }> = [
@@ -37,15 +40,24 @@ diff --git a/app/src/TerminalPane.tsx b/app/src/TerminalPane.tsx
 +        cursor = match.index + match.sequence.length;
 +      }
 +      queryBuffer = queryBuffer.slice(Math.max(cursor, queryBuffer.length - 12));
++      // Replies are only emitted for queries observed in PTY output. They are
++      // never fed back into this parser, so an echoed reply cannot loop.
 +      if (replies.length) void invoke("pty_write", { id, data: replies.join("") });
 +    };
++
+     const unlisteners: Array<() => void> = [];
      (async () => {
-@@ -71,3 +85,7 @@
-         await listen<{ id: string; b64: string }>("pty-output", (e) => {
--          if (e.payload.id === id) term.write(b64ToBytes(e.payload.b64));
-+          if (e.payload.id === id) {
-+            const bytes = b64ToBytes(e.payload.b64);
-+            term.write(bytes);
-+            respondToTerminalQueries(bytes);
-+          }
-         }),
+       // Register listeners BEFORE spawning so no early output is missed.
+@@ -115,7 +154,11 @@ export function TerminalPane({ id, cmd, args = [], cwd, fontSize = 12, onAgentSt
+       // already queued at the moment unlisten() runs.
+       const unlistenOutput = await listen<{ id: string; b64: string }>("pty-output", (e) => {
+         if (disposed) return;
+-        if (e.payload.id === id) writeBatcher.push(b64ToBytes(e.payload.b64));
++        if (e.payload.id === id) {
++          const bytes = b64ToBytes(e.payload.b64);
++          writeBatcher.push(bytes);
++          respondToTerminalQueries(bytes);
++        }
+       });
+       if (disposed) {
+         unlistenOutput();
